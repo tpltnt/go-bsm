@@ -2,11 +2,17 @@
 package main
 
 import (
+	"encoding/binary"
+	"errors"
 	"flag"
+	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"io"
 	"log"
 	"os"
+	"strconv"
 )
 
 // The 'file' token is used at the beginning and end of an audit log file
@@ -114,6 +120,179 @@ type SubjectToken64bit struct {
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint64 // terminal port ID (8 bytes)
 	TerminalMachineAddress uint32 // IP address of machine (4 bytes)
+}
+
+// ParseHeaderToken32bit parses a HeaderToken32bit out of the given bytes.
+func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
+	ptr := 0
+	token := HeaderToken32bit{}
+
+	// read token ID
+	tokenID := input[ptr]
+	if tokenID != 0x14 {
+		return token, errors.New("token ID mismatch")
+	}
+	token.TokenID = tokenID
+	ptr += 1
+
+	// read record byte count (4 bytes)
+	data, n := binary.Uvarint(input[ptr:ptr+4])
+	if n != 4 {
+		return token, errors.New("decoded wrong number of bytes when reading record byte count")
+	}
+	token.RecordByteCount = uint32(data)
+	ptr += 4
+
+	// read version number (2 bytes)
+	data, n = binary.Uvarint(input[ptr:ptr+2])
+	if n != 2 {
+		return token, errors.New("decoded wrong number of bytes when reading version number")
+	}
+	token.VersionNumber = uint16(data)
+	ptr += 2
+
+	// read event type (2 bytes)
+	data, n = binary.Uvarint(input[ptr:ptr+2])
+	if n != 2 {
+		return token, errors.New("decoded wrong number of bytes when reading event type")
+	}
+	token.EventType = uint16(data)
+	ptr += 2
+
+	// read event sub-type / modifier
+	data, n = binary.Uvarint(input[ptr:ptr+2])
+	if n != 2 {
+		return token, errors.New("decoded wrong number of bytes when reading event modifier")
+	}
+	token.EventModifier = uint16(data)
+	ptr += 2
+
+	// read seconds
+	data, n = binary.Uvarint(input[ptr:ptr+4])
+	if n != 4 {
+		return token, errors.New("decoded wrong number of bytes when reading timestamp seconds")
+	}
+	token.Seconds = uint32(data)
+	ptr += 4
+
+	// read nanoseconds
+	data, n = binary.Uvarint(input[ptr:ptr+4])
+	if n != 4 {
+		return token, errors.New("decoded wrong number of bytes when reading timestamp nanoseconds")
+	}
+	token.NanoSeconds = uint32(data)
+
+	return token, nil
+}
+
+// RecordsFromFile yields a generator for all records contained
+// in the given file.
+func RecordsFromFile(input io.Reader) error {
+	oneByte := []byte{0x00}
+	twoBytes := []byte{0x00, 0x00}
+	fourBytes := []byte{0x00, 0x00, 0x00, 0x00}
+	n, err := input.Read(oneByte)
+	if nil != err {
+		return err
+	}
+	if n != 1 {
+		return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 1")
+	}
+	tokenID := oneByte[0]
+	switch tokenID {
+	case 0x14: // HeaderToken32bit
+		token := HeaderToken32bit{
+			TokenID: tokenID,
+		}
+		// read record byte count
+		n, err = input.Read(fourBytes)
+		if nil != err {
+			return err
+		}
+		if n != 1 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
+		}
+		data, n := binary.Uvarint(fourBytes)
+		if n != 4 {
+			return errors.New("decoded wrong number of bytes when reading record byte count")
+		}
+		token.RecordByteCount = uint32(data)
+
+		// read version number
+		n, err = input.Read(twoBytes)
+		if nil != err {
+			return err
+		}
+		if n != 2 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
+		}
+		data, n = binary.Uvarint(twoBytes)
+		if n != 2 {
+			return errors.New("decoded wrong number of bytes when reading version number")
+		}
+		token.VersionNumber = uint16(data)
+
+		// read event type
+		n, err = input.Read(twoBytes)
+		if nil != err {
+			return err
+		}
+		if n != 2 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
+		}
+		data, n = binary.Uvarint(twoBytes)
+		if n != 2 {
+			return errors.New("decoded wrong number of bytes when reading event type")
+		}
+		token.EventType = uint16(data)
+
+		// read event sub-type / modifier
+		n, err = input.Read(twoBytes)
+		if nil != err {
+			return err
+		}
+		if n != 2 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
+		}
+		data, n = binary.Uvarint(twoBytes)
+		if n != 2 {
+			return errors.New("decoded wrong number of bytes when reading event modifier")
+		}
+		token.EventModifier = uint16(data)
+
+		// read seconds
+		n, err = input.Read(fourBytes)
+		if nil != err {
+			return err
+		}
+		if n != 4 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
+		}
+		data, n = binary.Uvarint(twoBytes)
+		if n != 4 {
+			return errors.New("decoded wrong number of bytes when reading timestamp seconds")
+		}
+		token.Seconds = uint32(data)
+
+		// read nanoseconds
+		n, err = input.Read(fourBytes)
+		if nil != err {
+			return err
+		}
+		if n != 4 {
+			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
+		}
+		data, n = binary.Uvarint(twoBytes)
+		if n != 4 {
+			return errors.New("decoded wrong number of bytes when reading timestamp nanoseconds")
+		}
+		token.NanoSeconds = uint32(data)
+
+		fmt.Println(spew.Sdump(token))
+	default:
+		return errors.New("new token ID found: " + spew.Sdump(tokenID))
+	}
+	return nil
 }
 
 func main() {
