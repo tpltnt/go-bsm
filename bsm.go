@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 )
@@ -122,10 +123,50 @@ type SubjectToken64bit struct {
 	TerminalMachineAddress uint32 // IP address of machine (4 bytes)
 }
 
+// Go has this unexpected behaviour, where Uvarint() aborts
+// after reading the first byte if it is 0x00 (no matter
+// what comes later) and can eat max 2 bytes. I expected 8 since
+// Uvarint() returns a uint64. Anyhow, I decided to roll my own.
+
+// Convert bytes to uint32 (and abstract away some quirks).
+func bytesToUint32(input []byte) (uint32, error) {
+	if 4 < len(input) {
+		return 0, errors.New("more than four bytes given -> risk of overflow")
+	}
+	result := uint32(0)
+	for i := 0; i < len(input); i++ {
+		coeff := uint32(input[i])
+		exp := float64(len(input) - i - 1)
+		powerOf256 := uint32(math.Pow(float64(256), exp))
+		result += coeff * powerOf256
+	}
+	return result, nil
+}
+
+// Convert bytes to uint32 (and abstract away some quirks).
+func bytesToUint16(input []byte) (uint16, error) {
+	if 2 < len(input) {
+		return 0, errors.New("more than four bytes given -> risk of overflow")
+	}
+	result := uint16(0)
+	for i := 0; i < len(input); i++ {
+		coeff := uint16(input[i])
+		exp := float64(len(input) - i - 1)
+		powerOf256 := uint16(math.Pow(float64(256), exp))
+		result += coeff * powerOf256
+	}
+	return result, nil
+}
+
 // ParseHeaderToken32bit parses a HeaderToken32bit out of the given bytes.
 func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 	ptr := 0
 	token := HeaderToken32bit{}
+
+	// (static) length check
+	if len(input) != 19 {
+		return token, errors.New("invalid length of 32bit header token")
+	}
 
 	// read token ID
 	tokenID := input[ptr]
@@ -136,51 +177,51 @@ func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 	ptr += 1
 
 	// read record byte count (4 bytes)
-	data, n := binary.Uvarint(input[ptr:ptr+4])
-	if n != 4 {
-		return token, errors.New("decoded wrong number of bytes when reading record byte count")
+	data32, err := bytesToUint32(input[ptr : ptr+4])
+	if err != nil {
+		return token, err
 	}
-	token.RecordByteCount = uint32(data)
+	token.RecordByteCount = data32
 	ptr += 4
 
 	// read version number (2 bytes)
-	data, n = binary.Uvarint(input[ptr:ptr+2])
-	if n != 2 {
-		return token, errors.New("decoded wrong number of bytes when reading version number")
+	data16, err := bytesToUint16(input[ptr : ptr+2])
+	if err != nil {
+		return token, err
 	}
-	token.VersionNumber = uint16(data)
+	token.VersionNumber = data16
 	ptr += 2
 
 	// read event type (2 bytes)
-	data, n = binary.Uvarint(input[ptr:ptr+2])
-	if n != 2 {
-		return token, errors.New("decoded wrong number of bytes when reading event type")
+	data16, err = bytesToUint16(input[ptr : ptr+2])
+	if err != nil {
+		return token, err
 	}
-	token.EventType = uint16(data)
+	token.EventType = data16
 	ptr += 2
 
 	// read event sub-type / modifier
-	data, n = binary.Uvarint(input[ptr:ptr+2])
-	if n != 2 {
-		return token, errors.New("decoded wrong number of bytes when reading event modifier")
+	data16, err = bytesToUint16(input[ptr : ptr+2])
+	if err != nil {
+		return token, err
 	}
-	token.EventModifier = uint16(data)
+	token.EventModifier = data16
 	ptr += 2
 
 	// read seconds
-	data, n = binary.Uvarint(input[ptr:ptr+4])
-	if n != 4 {
-		return token, errors.New("decoded wrong number of bytes when reading timestamp seconds")
+	data32, err = bytesToUint32(input[ptr : ptr+4])
+	if err != nil {
+		return token, err
 	}
-	token.Seconds = uint32(data)
+	token.Seconds = data32
 	ptr += 4
 
 	// read nanoseconds
-	data, n = binary.Uvarint(input[ptr:ptr+4])
-	if n != 4 {
-		return token, errors.New("decoded wrong number of bytes when reading timestamp nanoseconds")
+	data32, err = bytesToUint32(input[ptr : ptr+4])
+	if err != nil {
+		return token, err
 	}
-	token.NanoSeconds = uint32(data)
+	token.NanoSeconds = data32
 
 	return token, nil
 }
