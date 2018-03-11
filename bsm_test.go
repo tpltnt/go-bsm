@@ -64,6 +64,47 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 	}
 }
 
+func Test_determineTokenSize_file_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x11}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 10 {
+		t.Error("expected 10 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token (in terms of size)
+	testData = []byte{0x11, // token ID
+		0x00, 0x01, 0x02, 0x03, // seconds
+		0x04, 0x05, 0x06, 0x07, // microseconds
+		0x23, 0xf8, // file name length
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	if size != (11 + 9208 + 1) { // 11 inital bytes + file name length (from hex) + NUL
+		t.Error("wrong size: expected " + strconv.Itoa(11+9208+1) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
 func TestParseHeaderToken32bit(t *testing.T) {
 	data := []byte{0x14, // token ID \
 		0x00, 0x00, 0x00, 0x38, // record byte number \

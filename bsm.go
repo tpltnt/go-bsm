@@ -162,6 +162,21 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 
 	// do magic based on token ID
 	switch input[0] {
+	case 0x11: // file token -> variable length
+		// make sure we have enough bytes of token to
+		// determine its length
+		if len(input) < (1 + 4 + 4 + 2) {
+			// request bytes up & incl. "File name length" field
+			moreBytes = (1 + 4 + 4 + 2) - len(input)
+			return
+		}
+		fileNameLength, local_err := bytesToUint16(input[9:11]) // read 2 bytes indicating file name length
+		if local_err != nil {
+			err = local_err
+			return
+		}
+		size = 1 + 4 + 4 + 2 + int(fileNameLength) + 1 // don't forget NUL
+		return
 	case 0x13: // trailer token
 		size = 1 + 2 + 4
 	case 0x14: // 32 bit Header Token
