@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/tpltnt/go-bsm.svg?branch=master)](https://travis-ci.org/tpltnt/go-bsm)
+
 # go-bsm
 
 This is a parser for the FreeBSD audit file format (based on Sun's Basic Security Module (BSM) file format).
