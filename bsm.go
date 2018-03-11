@@ -143,6 +143,21 @@ func bytesToUint32(input []byte) (uint32, error) {
 	return result, nil
 }
 
+// Convert bytes to uint32 (and abstract away some quirks).
+func bytesToUint16(input []byte) (uint16, error) {
+	if 2 < len(input) {
+		return 0, errors.New("more than four bytes given -> risk of overflow")
+	}
+	result := uint16(0)
+	for i := 0; i < len(input); i++ {
+		coeff := uint16(input[i])
+		exp := float64(len(input) - i - 1)
+		powerOf256 := uint16(math.Pow(float64(256), exp))
+		result += coeff * powerOf256
+	}
+	return result, nil
+}
+
 // Determine the size (in bytes) of the current token. This is a
 // utility function to determine the number of bytes (yet) to read
 // from the input buffer. The return values are:
@@ -195,21 +210,6 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		err = errors.New("can't determine the size of the given token (type)")
 	}
 	return
-}
-
-// Convert bytes to uint32 (and abstract away some quirks).
-func bytesToUint16(input []byte) (uint16, error) {
-	if 2 < len(input) {
-		return 0, errors.New("more than four bytes given -> risk of overflow")
-	}
-	result := uint16(0)
-	for i := 0; i < len(input); i++ {
-		coeff := uint16(input[i])
-		exp := float64(len(input) - i - 1)
-		powerOf256 := uint16(math.Pow(float64(256), exp))
-		result += coeff * powerOf256
-	}
-	return result, nil
 }
 
 // ParseHeaderToken32bit parses a HeaderToken32bit out of the given bytes.
