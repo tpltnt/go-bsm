@@ -162,10 +162,20 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 
 	// do magic based on token ID
 	switch input[0] {
+	case 0x13: // trailer token
+		size = 1 + 2 + 4
 	case 0x14: // 32 bit Header Token
 		size = 1 + 4 + 2 + 2 + 2 + 4 + 4
+	case 0x24: // 32 bit Subject Token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
+	case 0x27: // 32 bit Return Token
+		size = 1 + 1 + 4
+	case 0x72: // 64 bit Return Token
+		size = 1 + 1 + 8
 	case 0x74: // 64 bit Header Token
 		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
+	case 0x75: // 64 bit Header Token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
 	default:
 		err = errors.New("can't determine the size of the given token (type)")
 	}
