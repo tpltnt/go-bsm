@@ -143,6 +143,35 @@ func bytesToUint32(input []byte) (uint32, error) {
 	return result, nil
 }
 
+// Determine the size (in bytes) of the current token. This is a
+// utility function to determine the number of bytes (yet) to read
+// from the input buffer. The return values are:
+// * size - size of token in bytes
+// * moreBytes - number of more bytes to read to make determination
+// * err - any error that ocurred
+func determineTokenSize(input []byte) (size, moreBytes int, err error) {
+	size = 0
+	moreBytes = 0
+	err = nil
+
+	// simple case and making sure we get a token ID
+	if 0 == len(input) {
+		moreBytes = 1
+		return
+	}
+
+	// do magic based on token ID
+	switch input[0] {
+	case 0x14: // 32 bit Header Token
+		size = 1 + 4 + 2 + 2 + 2 + 4 + 4
+	case 0x74: // 64 bit Header Token
+		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
+	default:
+		err = errors.New("can't determine the size of the given token (type)")
+	}
+	return
+}
+
 // Convert bytes to uint32 (and abstract away some quirks).
 func bytesToUint16(input []byte) (uint16, error) {
 	if 2 < len(input) {

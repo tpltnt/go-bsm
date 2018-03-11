@@ -42,6 +42,23 @@ func TestRecordsFromFile(t *testing.T) {
 	}
 }
 
+// fixed sized tokens
+func Test_determineTokenSize_fixed(t *testing.T) {
+	testData := map[byte]int{
+		0x14: 19, // 32 bit header token
+		0x74: 27, // 64 bit header token
+	}
+	for tokenID, count := range testData {
+		dcount, _, err := determineTokenSize([]byte{tokenID})
+		if err != nil {
+			t.Error(err)
+		}
+		if dcount != count {
+			t.Error("token size does not match expectation of token ID")
+		}
+	}
+}
+
 func TestParseHeaderToken32bit(t *testing.T) {
 	data := []byte{0x14, // token ID \
 		0x00, 0x00, 0x00, 0x38, // record byte number \
