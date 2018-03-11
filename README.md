@@ -12,3 +12,5 @@ for Go (as of beginning of 2018) and ANTLv4 requires Java.
 * [audit.log(5)](https://www.freebsd.org/cgi/man.cgi?query=audit.log&apropos=0&sektion=0&arch=default&format=html)
 * [FreeBSD handbook Chapter 16: Security Event Auditing](https://www.freebsd.org/doc/handbook/audit.html)
 * [TrustedBSD OpenBSM](http://trustedbsd.org/openbsm.html) - [github repository](https://github.com/openbsm/openbsm)
+* [Forensics Wiki: Basic Security Module (BSM) file format](http://forensicswiki.org/wiki/Basic_Security_Module_(BSM)_file_format)
+* [SunSHIELD Basic Security Module Guide (pdf)](https://docs.oracle.com/cd/E19457-01/801-6636/801-6636.pdf)
