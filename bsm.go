@@ -17,6 +17,28 @@ import (
 	"strconv"
 )
 
+// ArgToken32bit (or 'arg' token) contains information
+// about arguments of the system call.
+// These arguments are encoded in 32 bit
+type ArgToken32bit struct {
+	TokenID       byte   // Token ID (1 byte): 0x2d
+	ArgumentID    uint8  // argument ID (1 byte)
+	ArgumentValue uint32 // argument value (4 bytes)
+	Length        uint16 // length of the text (2 bytes)
+	Text          string // the string including nul (Length + 1 NUL bytes)
+}
+
+// ArgToken64bit (or 'arg' token) contains information
+// about arguments of the system call.
+// These arguments are encoded in 32 bit
+type ArgToken64bit struct {
+	TokenID       byte   // Token ID (1 byte): 0x71
+	ArgumentID    uint8  // argument ID (1 byte)
+	ArgumentValue uint64 // argument value (8 bytes)
+	Length        uint16 // length of the text (2 bytes)
+	Text          string // the string including nul (Length + 1 NUL bytes)
+}
+
 // ArbitraryDataToken (or 'arbitrary data' token) contains a byte stream
 // of opaque (untyped) data. The size of the data is calculated as the size
 // of each unit of data multiplied by the number of units of data.  A
@@ -30,16 +52,80 @@ type ArbitraryDataToken struct {
 	DataItems  [][]byte // user data
 }
 
+// AttributeToken32bit (or 'attribute' token) describes the attributes of a file
+// associated with the audit event. As files may be identified by 0, 1, or many	path
+// names, a path name is not included with the attribute block for a file;  optional
+// 'path' tokens may also be present in an audit record indicating which path, if
+// any, was used to reach the object. The device number is stored using 32 bit.
+// TODO: check if token ID may be 0x31
+type AttributeToken32bit struct {
+	TokenID          byte   // Token ID (1 byte): 0x3e
+	FileAccessMode   byte   // mode_t associated with file (1 byte)
+	OwnerUserID      uint32 // uid_t associated with file (4 bytes)
+	OwnerGroupID     uint32 // gid_t associated with file (4 bytes)
+	FileSystemID     uint32 // fsid_t associated with file (4 bytes)
+	FileSystemNodeID uint64 // ino_t associated with file (8 bytes)
+	Device           uint32 // Device major/minor number (4 bytes)
+}
+
+// AttributeToken64bit (or 'attribute' token) describes the attributes of a file
+// associated with the audit event. As files may be identified by 0, 1, or many	path
+// names, a path name is not included with the attribute block for a file;  optional
+// 'path' tokens may also be present in an audit record indicating which path, if
+// any, was used to reach the object. The device number is stored using 64 bit.
+type AttributeToken64bit struct {
+	TokenID          byte   // Token ID (1 byte): 0x73
+	FileAccessMode   byte   // mode_t associated with file (1 byte)
+	OwnerUserID      uint32 // uid_t associated with file (4 bytes)
+	OwnerGroupID     uint32 // gid_t associated with file (4 bytes)
+	FileSystemID     uint32 // fsid_t associated with file (4 bytes)
+	FileSystemNodeID uint64 // ino_t associated with file (8 bytes)
+	Device           uint64 // Device major/minor number (8 bytes)
+}
+
+// ExecArgsToken (or 'exec_args' token) contains information about
+// arguments of the exec() system call.
+type ExecArgsToken struct {
+	TokenID byte     // Token ID (1 byte): 0x3c
+	Count   uint32   // number of arguments (4 bytes)
+	Text    []string // Count NUL-terminated strings
+}
+
+// ExecEnvToken (or 'exec_env' token) contains current environment
+// variables to an exec() system call.
+type ExecEnvToken struct {
+	TokenID byte     // Token ID (1 byte): 0x3d
+	Count   uint32   // number of variables (4 bytes)
+	Text    []string // Count NUL-terminated strings
+}
+
+// ExitToken (or 'exit' token) contains process
+// exit/return code information.
+type ExitToken struct {
+	TokenID     byte   // Token ID (1 byte): 0x52
+	Status      uint32 // Process status on exit (4 bytes)
+	ReturnValue int32  // Process return value on exit (4 bytes)
+}
+
 // FileToken (or 'file' token) is used at the beginning and end of an audit
 // log file to indicate when the audit log begins and ends. It includes a
 // pathname so that, if concatenated together, original file boundaries are
 // still observable, and gaps in the audit log can be identified.
+// BUG: unable to determine token ID (0x11 vs. 0x78 vs . ?)
 type FileToken struct {
 	TokenID        byte   // Token ID (1 byte):
 	Seconds        uint32 // file timestamp (4 bytes)
 	Microseconds   uint32 // file timestamp (4 bytes)
 	FileNameLength uint16 // file name of audit trail (2 bytes)
 	PathName       string // file name of audit trail (FileNameLength + 1 (NULL))
+}
+
+// GroupsToken (or 'groups' token) contains a list of group IDs associated
+// with the audit event.
+type GroupsToken struct {
+	TokenID        byte     // Token ID (1 byte): 0x34
+	NumberOfGroups uint16   // Number of groups in token (2 bytes)
+	GroupList      []uint32 // List of N group IDs (N*4 bytes)
 }
 
 // HeaderToken32bit (or 'header' token is used to mark the beginning of a
@@ -254,6 +340,42 @@ type ReturnToken64bit struct {
 	ReturnValue uint64 // return value (8 bytes)
 }
 
+// SeqToken ('seq' token) contains a unique and monotonically
+// increasing audit event sequence ID. Due to the limited range of 32
+// bits, serial number arithmetic and caution should be used when
+// comparing sequence numbers.
+type SeqToken struct {
+	TokenID        byte   // Token ID (1 byte): 0x2f
+	SequenceNumber uint32 // audit event sequence number
+}
+
+// SocketToken (or 'socket' token) contains information about UNIX
+// domain and Internet sockets. Each token has four or eight fields.
+// BUG: last sentence is confusing
+// TODO: take care of FreeBSD specifics
+// #define    AUT_SOCKINET32	0x80	/* XXX Darwin/FreeBSD */
+// #define    AUT_SOCKINET128   0x81    /* XXX Darwin/FreeBSD */
+// #define    AUT_SOCKUNIX	0x82    /* XXX Darwin/FreeBSD */
+type SocketToken struct {
+	TokenID       byte   // Token ID (1 byte): 0x2e
+	SocketFamily  uint16 // socket family (2 bytes)
+	LocalPort     uint16 // local port (2 bytes)
+	SocketAddress net.IP // socket address (4 bytes)
+}
+
+// ExpandedSocketToken (or 'expanded socket' token) contains
+// information about IPv4 and IPv6 sockets.
+type ExpandedSocketToken struct {
+	TokenID         byte   // Token ID (1 byte): 0x7f
+	SocketDomain    uint16 // socket domain (2 bytes)
+	SocketType      uint16 // socket type (2 bytes)
+	AddressType     uint16 // address type (IPv4/IPv6) (2 bytes)
+	LocalPort       uint16 // local port (2 bytes)
+	LocalIpAddress  net.IP // local IP address (4/16 bytes)
+	RemotePort      uint16 // remote port (2 bytes)
+	RemoteIpAddress net.IP // remote IP address (4/16 bytes)
+}
+
 // SubjectToken32bit (or 'subject' token) contains information on the
 // subject performing the operation described by an audit record, and
 // includes similar information to that found in the 'process' and
@@ -332,6 +454,35 @@ type ExpandedSubjectToken64bit struct {
 	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
 }
 
+// SystemVIpcToken (or 'System V IPC' token) contains the System V
+// IPC message handle, semaphore handle or shared memory handle.
+type SystemVIpcToken struct {
+	TokenID      byte   // Token ID (1 byte): 0x22
+	ObjectIdType uint8  // Object ID (1 byte)
+	ObjectID     uint32 // Object ID (4 bytes)
+}
+
+// SystemVIpcPermissionToken (or 'System V IPC permission' token)
+// contains a System V IPC access permissions.
+type SystemVIpcPermissionToken struct {
+	TokenID        byte   // Token ID (1 byte): 0x32
+	OwnerUserID    uint32 // User ID of IPC owner (4 bytes)
+	OwnerGroupID   uint32 // Group ID of IPC owner (4 bytes)
+	CreatorUserID  uint32 // User ID of IPC creator (4 bytes)
+	CreatorGroupID uint32 //  Group ID of IPC creator (4 bytes)
+	AccessMode     uint32 // Access mode (4 bytes)
+	SequenceNumber uint32 // Sequence number (4 bytes)
+	Key            uint32 // IPC key (4 bytes)
+}
+
+// TextToken (or 'text' token) contains a single NUL-terminated text string.
+// TODO: check actual length (documentation looks like off-by-one)
+type TextToken struct {
+	TokenID    byte   // Token ID (1 byte): 0x28
+	TextLength uint16 // length of text string including NUL (2 bytes)
+	Text       string // Text string incl. NUL (TextLength bytes + 1 NUL)
+}
+
 // TrailerToken (or 'trailer' terminates) a BSM audit record. This token
 // contains a magic number, and length that can be used to validate that
 // the record was read properly.
@@ -339,6 +490,14 @@ type TrailerToken struct {
 	TokenID          byte   // Token ID (1 byte): 0x13
 	TrailerMagic     uint16 // trailer magic number (2 bytes): 0xb105
 	RecordByteCoount uint32 // number of bytes in record (4 bytes)
+}
+
+// ZonenameToken (or 'zonename' token) holds a NUL-terminated string
+// with the name of the zone or jail from which the record originated.
+type ZonenameToken struct {
+	TokenID        byte   // Token ID (1 byte): 0x60
+	ZonenameLength uint16 // length of zonename string including NUL (2 bytes)
+	Zonename       string // Zonename string including NUL
 }
 
 // Go has this unexpected behaviour, where Uvarint() aborts
