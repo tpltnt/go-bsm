@@ -12,14 +12,28 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"os"
 	"strconv"
 )
 
-// The 'file' token is used at the beginning and end of an audit log file
-// to indicate when the audit log begins and ends. It includes a pathname
-// so that, if concatenated together, original file boundaries are still
-// observable, and gaps in the audit log can be identified.
+// ArbitraryDataToken (or 'arbitrary data' token) contains a byte stream
+// of opaque (untyped) data. The size of the data is calculated as the size
+// of each unit of data multiplied by the number of units of data.  A
+// 'How to print' field is present to specify how to print the data, but
+// interpretation of that field is not currently defined.
+type ArbitraryDataToken struct {
+	TokenID    byte     // token ID (1 byte): 0x21
+	HowToPrint byte     // user-defined printing information (1 byte)
+	BasicUnit  uint8    // size of a unit in bytes (1 byte)
+	UnitCount  uint8    // number if units of data present (1 byte)
+	DataItems  [][]byte // user data
+}
+
+// FileToken (or 'file' token) is used at the beginning and end of an audit
+// log file to indicate when the audit log begins and ends. It includes a
+// pathname so that, if concatenated together, original file boundaries are
+// still observable, and gaps in the audit log can be identified.
 type FileToken struct {
 	TokenID        byte   // Token ID (1 byte):
 	Seconds        uint32 // file timestamp (4 bytes)
@@ -28,10 +42,11 @@ type FileToken struct {
 	PathName       string // file name of audit trail (FileNameLength + 1 (NULL))
 }
 
-// The 'header' token is used to mark the beginning of a complete audit
-// record, and includes the length of the total record in bytes, a version
-// number for the record layout, the event type and subtype, and the time at
-// which the event occurred. This type uses 32 bits to encode time information.
+// HeaderToken32bit (or 'header' token is used to mark the beginning of a
+// complete audit record, and includes the length of the total record in bytes,
+// a version number for the record layout, the event type and subtype, and the
+// time at which the event occurred. This type uses 32 bits to encode time
+// information.
 type HeaderToken32bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x14
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
@@ -42,10 +57,11 @@ type HeaderToken32bit struct {
 	NanoSeconds     uint32 // record time stamp (4 bytes)
 }
 
-// The 'header' token is used to mark the beginning of a complete audit
-// record, and includes the length of the total record in bytes, a version
-// number for the record layout, the event type and subtype, and the time at
-// which the event occurred. This type uses 64 bits to encode time information.
+// HeaderToken64bit (or 'header' token) is used to mark the beginning of a
+// complete audit record, and includes the length of the total record in
+// bytes, a version number for the record layout, the event type and subtype,
+// and the time at which the event occurred. This type uses 64 bits to
+// encode time information.
 type HeaderToken64bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x74
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
@@ -56,41 +72,194 @@ type HeaderToken64bit struct {
 	NanoSeconds     uint64 // record time stamp (8 bytes)
 }
 
-// The `trailer' terminates a BSM audit record. This token contains a magic
-// number, and length that can be used to validate that the record was
-// read properly.
-type TrailerToken struct {
-	TokenID          byte   // Token ID (1 byte): 0x13
-	TrailerMagic     uint16 // trailer magic number (2 bytes): 0xb105
-	RecordByteCoount uint32 // number of bytes in record (4 bytes)
+// ExpandedHeaderToken32bit (or 'expanded header' token) is an expanded
+// version of the 'header' token, with the addition of a machine IPv4 or
+// IPv6 address. This type uses 32 bits to encode time information.
+type ExpandedHeaderToken32bit struct {
+	TokenID         byte   // Token ID (1 byte): 0x15
+	RecordByteCount uint32 // number of bytes in record (4 bytes)
+	VersionNumber   uint16 // record version number (2 bytes)
+	EventType       uint16 // event type (2 bytes)
+	EventModifier   uint16 // event sub-type (2 bytes)
+	AddressType     uint8  // host address type and length (1 byte)
+	MachineAddress  net.IP // IPv4/6 address (4/16 bytes)
+	Seconds         uint32 // record time stamp (4 bytes)
+	NanoSeconds     uint32 // record time stamp (4 bytes)
 }
 
-// The 'return' token contains a system call or library function return
-// condition, including return value and error number associated with the
-// global (C) variable errno. This type uses 32 bit to encode the return
-// value.
+// ExpandedHeaderToken64bit (or 'expanded header' token) is an expanded
+// version of the 'header' token, with the addition of a machine IPv4 or
+// IPv6 address. This type uses 64 bits to encode time information.
+type ExpandedHeaderToken64bit struct {
+	TokenID         byte   // Token ID (1 byte): 0x79
+	RecordByteCount uint32 // number of bytes in record (4 bytes)
+	VersionNumber   uint16 // record version number (2 bytes)
+	EventType       uint16 // event type (2 bytes)
+	EventModifier   uint16 // event sub-type (2 bytes)
+	AddressType     uint8  // host address type and length (1 byte)
+	MachineAddress  net.IP // IPv4/6 address (4/16 bytes)
+	Seconds         uint64 // record time stamp (8 bytes)
+	NanoSeconds     uint64 // record time stamp (8 bytes)
+}
+
+// InAddrToken (or 'in_addr' token) holds a (network byte order) IPv4 address.
+// BUGS: token layout documented in audit.log(5) appears to be in conflict with the libbsm(3) implementation of au_to_in_addr_ex(3).
+type InAddrToken struct {
+	TokenID   byte   // Token ID (1 byte): 0x2a
+	IpAddress net.IP // IPv4 address (4 bytes)
+}
+
+// ExpandedInAddrToken (or 'expanded in_addr' token) holds a
+// (network byte order) IPv4 or IPv6 address.
+// TODO: determine value indicating address type
+// BUGS: token layout documented in audit.log(5) appears to be in conflict with the libbsm(3) implementation of au_to_in_addr_ex(3).
+type ExpandedInAddrToken struct {
+	TokenID       byte   // Token ID (1 byte): 0x7e
+	IpAddressType byte   // type of IP address
+	IpAddress     net.IP // IP address (4/16 bytes)
+}
+
+// IpToken (or 'ip' token) contains an IP(v4) packet header in network
+// byte order.
+type IpToken struct {
+	TokenID            byte   // Token ID (1 byte): 0x2b
+	VersionAndIHL      uint8  // Version and IP header length (1 byte)
+	TypeOfService      byte   // IP TOS field (1 byte)
+	Length             uint16 // IP packet length in network byte order (2 bytes)
+	ID                 uint16 // IP header ID for reassembly (2 bytes)
+	Offset             uint16 // IP fragment offset and flags, network byte order (2 bytes)
+	TTL                uint8  // IP Time-to-Live (1 byte)
+	Protocol           uint8  // IP protocol number (1 byte)
+	Checksum           uint16 // IP header checksum, network byte order (2 bytes)
+	SourceAddress      net.IP // IPv4 source address (4 bytes)
+	DestinationAddress net.IP // IPv4 destination addess (4 bytes)
+}
+
+// IPortToken (or 'iport' token) stores an IP port number in network byte order.
+type IPortToken struct {
+	TokenID    byte   // Token ID (1 byte): 0x2c
+	PortNumber uint16 // Port number in network byte order (2 bytes)
+}
+
+// PathToken (or 'path' token) contains a pathname.
+type PathToken struct {
+	TokenID    byte   // Token ID (1 byte): 0x23
+	PathLength uint16 // Length of path in bytes (2 bytes)
+	Path       string // Path name (PathLength bytes + 1 NUL)
+}
+
+// PathAttrToken (or 'path_attr' token) contains a set of NUL-terminated path names.
+// TODO: verify Token ID
+type PathAttrToken struct {
+	TokenID byte     // Token ID (1 byte): 0x25 ?
+	Count   uint16   // Number of NUL-terminated string(s) in token (2 bytes)
+	Path    []string // count NUL-terminated string(s)
+}
+
+// ProcessToken32bit (or 'process' token) contains a description of the security
+// properties of a process involved as the target of an auditable event, such
+// as the destination for signal delivery. It should not be confused with the
+// 'subject' token, which describes the subject performing an auditable
+// event. This includes both the traditional UNIX security properties, such
+// as user IDs and group IDs, but also audit information such as the audit
+// user ID and session. The terminal port ID is encoded using 32 bit.
+type ProcessToken32bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x26
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // session ID (4 bytes)
+	TerminalPortID         uint32 // terminal port ID (4 byte)
+	TerminalMachineAddress net.IP // IP(v4) address of machine (4 bytes)
+}
+
+// ProcessToken64bit (or 'process' token) contains a description of the security
+// properties of a process involved as the target of an auditable event, such
+// as the destination for signal delivery. It should not be confused with the
+// 'subject' token, which describes the subject performing an auditable
+// event. This includes both the traditional UNIX security properties, such
+// as user IDs and group IDs, but also audit information such as the audit
+// user ID and session. The terminal port ID is encoded using 64 bit.
+type ProcessToken64bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x77
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // session ID (4 bytes)
+	TerminalPortID         uint64 // terminal port ID (8 byte)
+	TerminalMachineAddress net.IP // IP(v4) address of machine (4 bytes)
+}
+
+// ExpandedProcessToken32bit (or 'expanded process' token contains the contents
+// of the 'process' token, with the addition of a machine address type and
+// variable length address storage capable of containing IPv6 addresses.
+// The terminal port ID is encoded using 32 bit.
+// TODO: check length of IP records (4 bytes for IPv6?)
+type ExpandedProcessToken32bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x7b
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // session ID (4 bytes)
+	TerminalPortID         uint32 // terminal port ID (4 byte)
+	TerminalAddressLength  uint8  // length of machine address (1 byte)
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+}
+
+// ExpandedProcessToken64bit (or 'expanded process' token contains the contents
+// of the 'process' token, with the addition of a machine address type and
+// variable length address storage capable of containing IPv6 addresses.
+// The terminal port ID is encoded using 64 bit.
+// TODO: check length of IP records (4 bytes for IPv6?)
+type ExpandedProcessToken64bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x7d
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // session ID (4 bytes)
+	TerminalPortID         uint64 // terminal port ID (8 byte)
+	TerminalAddressLength  uint8  // length of machine address (1 byte)
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+}
+
+// ReturnToken32bit (or 'return' token) contains a system call or library
+// function return condition, including return value and error number
+// associated with the global (C) variable errno. This type uses 32 bit
+// to encode the return value.
 type ReturnToken32bit struct {
 	TokenID     byte   // Token ID (1 byte): 0x27
 	ErrorNumber uint8  // errno number, or 0 if undefined (1 byte)
 	ReturnValue uint32 // return value (4 bytes)
 }
 
-// The 'return' token contains a system call or library function return
-// condition, including return value and error number associated with the
-// global (C) variable errno. This type uses 64 bit to encode the return
-// value.
+// ReturnToken64bit (or 'return' token) contains a system call or library
+// function return condition, including return value and error number
+// associated with the global (C) variable errno. This type uses 64 bit
+// to encode the return value.
 type ReturnToken64bit struct {
 	TokenID     byte   // Token ID (1 byte): 0x72
 	ErrorNumber uint8  // errno number, or 0 if undefined (1 byte)
 	ReturnValue uint64 // return value (8 bytes)
 }
 
-// The 'subject' token contains information on the subject performing the
-// operation described by an audit record, and includes similar information
-// to that found in the 'process' and 'expanded process' tokens.  However,
-// those tokens are used where the process being described is the target
-// of the operation, not the authorizing party. This type uses 32 bit
-// to encode the terminal port ID.
+// SubjectToken32bit (or 'subject' token) contains information on the
+// subject performing the operation described by an audit record, and
+// includes similar information to that found in the 'process' and
+// 'expanded process' tokens.  However, those tokens are used where
+// the process being described is the target of the operation, not the
+// authorizing party. This type uses 32 bit to encode the terminal port ID.
 type SubjectToken32bit struct {
 	TokenID                byte   // Token ID (1 byte): 0x24
 	AuditID                uint32 // audit user ID (4 bytes)
@@ -101,15 +270,15 @@ type SubjectToken32bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint32 // terminal port ID (4 bytes)
-	TerminalMachineAddress uint32 // IP address of machine (4 bytes)
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
 }
 
-// The 'subject' token contains information on the subject performing the
-// operation described by an audit record, and includes similar information
-// to that found in the 'process' and 'expanded process' tokens.  However,
-// those tokens are used where the process being described is the target
-// of the operation, not the authorizing party. This type uses 64 bit
-// to encode the terminal port ID.
+// SubjectToken64bit (or 'subject' token) contains information on the
+// subject performing the operation described by an audit record, and
+// includes similar information to that found in the 'process' and
+// 'expanded process' tokens.  However, those tokens are used where the
+// process being described is the target of the operation, not the
+// authorizing party. This type uses 64 bit to encode the terminal port ID.
 type SubjectToken64bit struct {
 	TokenID                byte   // Token ID (1 byte): 0x75
 	AuditID                uint32 // audit user ID (4 bytes)
@@ -120,7 +289,56 @@ type SubjectToken64bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint64 // terminal port ID (8 bytes)
-	TerminalMachineAddress uint32 // IP address of machine (4 bytes)
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+}
+
+// ExpandedSubjectToken32bit (or 'expanded subject' token)
+// token consists of the same elements as the 'subject' token,
+// with the addition of type/length and variable size machine
+// address information in the terminal ID.
+// This type uses 32 bit to encode the terminal port ID.
+// TODO: check length of machine address field (4 bytes for IPv6?)
+type ExpandedSubjectToken32bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x7a
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // audit session ID (4 bytes)
+	TerminalPortID         uint32 // terminal port ID (4 bytes)
+	TerminalAddressLength  uint8  // length of machine address
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+}
+
+// ExpandedSubjectToken64bit (or 'expanded subject' token)
+// token consists of the same elements as the 'subject' token,
+// with the addition of type/length and variable size machine
+// address information in the terminal ID.
+// This type uses 64 bit to encode the terminal port ID.
+// TODO: check length of machine address field (4 bytes for IPv6?)
+type ExpandedSubjectToken64bit struct {
+	TokenID                byte   // Token ID (1 byte): 0x7c
+	AuditID                uint32 // audit user ID (4 bytes)
+	EffectiveUserID        uint32 // effective user ID (4 bytes)
+	EffectiveGroupID       uint32 // effective group ID (4 bytes)
+	RealUserID             uint32 // real user ID (4 bytes)
+	RealGroupID            uint32 // real group ID (4 bytes)
+	ProcessID              uint32 // process ID (4 bytes)
+	SessionID              uint32 // audit session ID (4 bytes)
+	TerminalPortID         uint64 // terminal port ID (8 bytes)
+	TerminalAddressLength  uint8  // length of machine address
+	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+}
+
+// TrailerToken (or 'trailer' terminates) a BSM audit record. This token
+// contains a magic number, and length that can be used to validate that
+// the record was read properly.
+type TrailerToken struct {
+	TokenID          byte   // Token ID (1 byte): 0x13
+	TrailerMagic     uint16 // trailer magic number (2 bytes): 0xb105
+	RecordByteCoount uint32 // number of bytes in record (4 bytes)
 }
 
 // Go has this unexpected behaviour, where Uvarint() aborts
