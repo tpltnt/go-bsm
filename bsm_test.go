@@ -59,7 +59,7 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 			t.Error(err)
 		}
 		if dcount != count {
-			t.Error("token size does not match expectation of token ID")
+			t.Errorf("token size does not match expectation of token ID 0x%x", tokenID)
 		}
 	}
 }
