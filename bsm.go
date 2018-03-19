@@ -201,7 +201,7 @@ type InAddrToken struct {
 // BUGS: token layout documented in audit.log(5) appears to be in conflict with the libbsm(3) implementation of au_to_in_addr_ex(3).
 type ExpandedInAddrToken struct {
 	TokenID       byte   // Token ID (1 byte): 0x7e
-	IpAddressType byte   // type of IP address
+	IpAddressType byte   // type of IP address (libbsm also calls this 'length')
 	IpAddress     net.IP // IP address (4/16 bytes)
 }
 
@@ -430,7 +430,7 @@ type ExpandedSubjectToken32bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint32 // terminal port ID (4 bytes)
-	TerminalAddressLength  uint8  // length of machine address
+	TerminalAddressLength  uint8  // length of machine address (1 byte)
 	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
 }
 
@@ -577,12 +577,28 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x27: // 32 bit Return Token
 		size = 1 + 1 + 4
+	case 0x2a: // in_addr token
+		size = 1 + 4
+	case 0x2b: // ip token
+		size = 1 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 2 + 4 + 4
+	case 0x2c: // iport token
+		size = 1 + 2
+	case 0x3e: // 32bit attribute token
+	size = 1 + 1 + 4 + 4 + 4 + 8 + 4
+	case 0x52: // exit token
+		size = 1 + 4 + 4
 	case 0x72: // 64 bit Return Token
 		size = 1 + 1 + 8
+	case 0x73: // 64 bit attribute token
+	     size = 1 + 1 + 4 + 4 + 4 + 8 + 8
 	case 0x74: // 64 bit Header Token
 		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
-	case 0x75: // 64 bit Header Token
+	case 0x75: // 64 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
+	case 0x7a: // expanded 32bit subject token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 4
+	case 0x7e: // expanded in_addr token
+		size = 1 + 1 + 16 // libbsm always allocates 16 bytes
 	default:
 		err = errors.New("can't determine the size of the given token (type)")
 	}

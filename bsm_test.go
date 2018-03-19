@@ -49,9 +49,17 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 		0x14: 19, // 32 bit header token
 		0x24: 37, // 32 bit subject token
 		0x27: 6,  // 32 bit return token
+		0x2a: 5,  // in_addr token
+		0x2b: 21, // ip token
+		0x2c: 3,  // iport token
+		0x3e: 26, // 32bit attribute token
+		0x52: 9,  // exit token
 		0x72: 10, // 64 bit return token
+		0x73: 30, // 64bit attribute token
 		0x74: 27, // 64 bit header token
 		0x75: 41, // 64 bit subject token
+		0x7a: 38, // 32 bit expanded subject token
+		0x7e: 18, // expanded in_addr token
 	}
 	for tokenID, count := range testData {
 		dcount, _, err := determineTokenSize([]byte{tokenID})
