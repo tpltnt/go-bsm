@@ -339,6 +339,420 @@ func Test_determineTokenSize_expanded_64bit_header_token(t *testing.T) {
 
 }
 
+func Test_determineTokenSize_32bit_arg_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x2d}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 7
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x2d, // token ID
+		0x00,                   // argument ID
+		0x00, 0x01, 0x02, 0x03, // argument value
+		0x00, 0x04, // length
+		0x41, 0x41, 0x41, 0x41, 0x00, // actual string
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 13
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
+func Test_determineTokenSize_arbitrary_data_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x21}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 3
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x21, // token ID
+		0x00,                                           // how to print
+		0x02,                                           // basic unit
+		0x04,                                           // unit count
+		0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, // data
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 12
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
+func Test_determineTokenSize_exec_args_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x3c}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 4
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x3c, // token ID
+		0x00, 0x00, 0x00, 0x02, // count
+		0x41, 0x41, 0x41, 0x41, 0x00, // text
+		0x42, 0x42, 0x42, 0x42, 0x00, // text
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 15
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_exec_argv_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x3d}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 4
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x3d, // token ID
+		0x00, 0x00, 0x00, 0x02, // count
+		0x41, 0x41, 0x41, 0x41, 0x00, // text
+		0x42, 0x42, 0x42, 0x42, 0x00, // text
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 15
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_group_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x34}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 2
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x34, // token ID
+		0x00, 0x01, // count
+		0x41, 0x41, 0x41, 0x41, 0x41, // ID 1
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 7
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_path_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x23}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 2
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x23, // token ID
+		0x00, 0x03, // path length
+		0x41, 0x2f, 0x42, 0x00, // "A/B"
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 7
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_path_attr_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x25}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 2
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x25, // token ID
+		0x00, 0x02, // count
+		0x41, 0x41, 0x41, 0x00, // path 1
+		0x42, 0x42, 0x42, 0x00, // path 2
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 11
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_text_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x28}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 2
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x28, // token ID
+		0x00, 0x03, // count
+		0x41, 0x41, 0x41, 0x00, // path 1
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 7
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_expanded_socket_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x7f}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 6
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x7f, // token ID
+		0x01, 0x02, // socket domain
+		0x01, 0x02, // socket type
+		0x00, 0x04, // address type
+		0x01, 0x02, // local port
+		0x00, 0x01, 0x02, 0x03, // local address (IPv4)
+		0x01, 0x02, // remote port
+		0x00, 0x01, 0x02, 0x03, // remote address (IPv4)
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 19
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
+func Test_determineTokenSize_zonename_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x60}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 2
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	// correct token (in terms of size)
+	testData = []byte{0x60, // token ID
+		0x00, 0x02, // zone name length
+		0x01, 0x02, 0x00, // zone name
+	}
+	size, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 6
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+}
+
 func TestParseHeaderToken32bit(t *testing.T) {
 	data := []byte{0x14, // token ID \
 		0x00, 0x00, 0x00, 0x38, // record byte number \

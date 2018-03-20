@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"flag"
@@ -522,7 +523,7 @@ func bytesToUint32(input []byte) (uint32, error) {
 // Convert bytes to uint32 (and abstract away some quirks).
 func bytesToUint16(input []byte) (uint16, error) {
 	if 2 < len(input) {
-		return 0, errors.New("more than four bytes given -> risk of overflow")
+		return 0, errors.New("more than two bytes given -> risk of overflow")
 	}
 	result := uint16(0)
 	for i := 0; i < len(input); i++ {
@@ -591,30 +592,168 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in 32bit expanded header token", addrlen)
 		}
+	case 0x21: // arbitrary data token
+		if len(input) < 4 {
+			// need more bytes to read BasicUnit and UnitCount fields
+			moreBytes = 4 - len(input)
+			return
+		}
+		unitSize := input[2]
+		unitCount := input[3]
+		size = 1 + 1 + 1 + 1 + int(unitSize)*int(unitCount)
 	case 0x22: // System V IPC token
 		size = 1 + 1 + 4
+	case 0x23: // path token
+		if len(input) < 3 {
+			// need more bytes to read Count field
+			moreBytes = 3 - len(input)
+			return
+		}
+		count, cerr := bytesToUint16(input[1:3])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 2 + int(count) + 1
 	case 0x24: // 32 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
+	case 0x25: // path attr token
+		if len(input) < 3 {
+			// need more bytes to read Count field
+			moreBytes = 3 - len(input)
+			return
+		}
+		strCount, cerr := bytesToUint16(input[1:3])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		// make sure we have strCount NUL-terminated strings
+		// NOTE: this is very crude and does not do a full validation
+		//       since it assumes a benevolent byte stream
+		if bytes.Count(input[3:], []byte{0x00}) < int(strCount) {
+			moreBytes = 1
+			return
+		}
+		size = len(input)
 	case 0x26: // 32bit process token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x27: // 32 bit Return Token
 		size = 1 + 1 + 4
+	case 0x28: // text token
+		if len(input) < 3 {
+			// need more bytes to read Count field
+			moreBytes = 3 - len(input)
+			return
+		}
+		count, cerr := bytesToUint16(input[1:3])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 2 + int(count) + 1
 	case 0x2a: // in_addr token
 		size = 1 + 4
 	case 0x2b: // ip token
 		size = 1 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 2 + 4 + 4
 	case 0x2c: // iport token
 		size = 1 + 2
+	case 0x2d: // 32bit arg token
+		if len(input) < 8 {
+			// need more bytes to read Length field
+			moreBytes = 8 - len(input)
+			return
+		}
+		strlen, cerr := bytesToUint16(input[6:8])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 1 + 4 + 2 + int(strlen) + 1
 	case 0x2e: // socket token
 		size = 1 + 2 + 2 + 4
 	case 0x2f: // seq token
 		size = 1 + 4
 	case 0x32: // System V IPC permission token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4
+	case 0x34: // groups token
+		if len(input) < 3 {
+			// need more bytes to read Count field
+			moreBytes = 3 - len(input)
+			return
+		}
+		count, cerr := bytesToUint16(input[1:3])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 2 + int(count)*4
+	case 0x3c: // exec args token
+		if len(input) < 5 {
+			// need more bytes to read Count field
+			moreBytes = 5 - len(input)
+			return
+		}
+		strCount, cerr := bytesToUint32(input[1:5])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		// make sure we have strCount NUL-terminated strings
+		// NOTE: this is very crude and does not do a full validation
+		//       since it assumes a benevolent byte stream
+		if bytes.Count(input[5:], []byte{0x00}) < int(strCount) {
+			moreBytes = 1
+			return
+		}
+		size = len(input)
+	case 0x3d: // exec env token
+		if len(input) < 5 {
+			// need more bytes to read Count field
+			moreBytes = 5 - len(input)
+			return
+		}
+		strCount, cerr := bytesToUint32(input[1:5])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		// make sure we have strCount NUL-terminated strings
+		// NOTE: this is very crude and does not do a full validation
+		//       since it assumes a benevolent byte stream
+		if bytes.Count(input[5:], []byte{0x00}) < int(strCount) {
+			moreBytes = 1
+			return
+		}
+		size = len(input)
 	case 0x3e: // 32bit attribute token
 		size = 1 + 1 + 4 + 4 + 4 + 8 + 4
 	case 0x52: // exit token
 		size = 1 + 4 + 4
+	case 0x60: // zone name token
+		if len(input) < 3 {
+			// need more bytes to read Length field
+			moreBytes = 3 - len(input)
+			return
+		}
+		strlen, cerr := bytesToUint16(input[1:3])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 2 + int(strlen) + 1
+	case 0x71: // 64 bit arg token
+		if len(input) < 12 {
+			// need more bytes to read Length field
+			moreBytes = 12 - len(input)
+			return
+		}
+		strlen, cerr := bytesToUint16(input[10:12])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		size = 1 + 1 + 8 + 2 + int(strlen) + 1
 	case 0x72: // 64 bit Return Token
 		size = 1 + 1 + 8
 	case 0x73: // 64 bit attribute token
@@ -674,9 +813,27 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 64bit expanded subject token", addrlen)
 		}
-
 	case 0x7e: // expanded in_addr token
 		size = 1 + 1 + 16 // libbsm always allocates 16 bytes
+	case 0x7f: // expanded socket token
+		if len(input) < 7 {
+			// need more bytes to read AddressType field
+			moreBytes = 7 - len(input)
+			return
+		}
+		addrlen, cerr := bytesToUint16(input[5:7])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		switch addrlen {
+		case 4: // IPv4 -> 4 bytes for address
+			size = 1 + 2 + 2 + 2 + 2 + 4 + 2 + 4
+		case 16: // IPv6 -> 16 bytes for address
+			size = 1 + 2 + 2 + 2 + 2 + 16 + 2 + 16
+		default:
+			err = fmt.Errorf("invalid value (%d) for 'address type' field in expanded socket token", addrlen)
+		}
 	default:
 		err = errors.New("can't determine the size of the given token (type)")
 	}
