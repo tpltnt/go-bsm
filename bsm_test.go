@@ -47,17 +47,23 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 	testData := map[byte]int{
 		0x13: 7,  // trailer token
 		0x14: 19, // 32 bit header token
+		0x22: 6,  // System V IPC token
 		0x24: 37, // 32 bit subject token
+		0x26: 37, // 32 bit process token
 		0x27: 6,  // 32 bit return token
 		0x2a: 5,  // in_addr token
 		0x2b: 21, // ip token
 		0x2c: 3,  // iport token
-		0x3e: 26, // 32bit attribute token
+		0x2e: 9,  // socket token
+		0x2f: 5,  // seq token
+		0x32: 29, // System V IPV permission token
+		0x3e: 26, // 32 bit attribute token
 		0x52: 9,  // exit token
 		0x72: 10, // 64 bit return token
-		0x73: 30, // 64bit attribute token
+		0x73: 30, // 64 bit attribute token
 		0x74: 27, // 64 bit header token
 		0x75: 41, // 64 bit subject token
+		0x77: 45, // 64 bit process token
 		0x7e: 18, // expanded in_addr token
 	}
 	for tokenID, count := range testData {
@@ -66,7 +72,7 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 			t.Error(err)
 		}
 		if dcount != count {
-			t.Errorf("token size does not match expectation of token ID 0x%x", tokenID)
+			t.Errorf("token size (%d) does not match expectation of token ID 0x%x (%d)", dcount, tokenID, count)
 		}
 	}
 }

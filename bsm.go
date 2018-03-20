@@ -591,7 +591,11 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in 32bit expanded header token", addrlen)
 		}
+	case 0x22: // System V IPC token
+		size = 1 + 1 + 4
 	case 0x24: // 32 bit Subject Token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
+	case 0x26: // 32bit process token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x27: // 32 bit Return Token
 		size = 1 + 1 + 4
@@ -601,6 +605,12 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		size = 1 + 1 + 1 + 2 + 2 + 2 + 1 + 1 + 2 + 4 + 4
 	case 0x2c: // iport token
 		size = 1 + 2
+	case 0x2e: // socket token
+		size = 1 + 2 + 2 + 4
+	case 0x2f: // seq token
+		size = 1 + 4
+	case 0x32: // System V IPC permission token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x3e: // 32bit attribute token
 		size = 1 + 1 + 4 + 4 + 4 + 8 + 4
 	case 0x52: // exit token
@@ -613,6 +623,8 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
 	case 0x75: // 64 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
+	case 0x77: // 64 bit process token
+		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 8
 	case 0x79: // 64 bit expanded header token
 		if len(input) < 15 {
 			// need more bytes to read AdressType field
