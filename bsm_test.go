@@ -221,6 +221,118 @@ func Test_determineTokenSize_expanded_64bit_subject_token(t *testing.T) {
 
 }
 
+func Test_determineTokenSize_expanded_32bit_header_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x15}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 14
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token (in terms of size)
+	testData = []byte{0x15, // token ID
+		0x00, 0x01, 0x02, 0x03, // number of bytes in record
+		0x00, 0x01, // record version number
+		0x00, 0x01, // event type
+		0x00, 0x01, // event modifier / sub-type
+		0x00, 0x01, 0x02, 0x03, // host address type/length
+		0x00, 0x01, 0x02, 0x03, // IPv4
+		0x00, 0x01, 0x02, 0x03, // seconds timestamp
+		0x00, 0x01, 0x02, 0x03, // nanosecond timestamp
+	}
+	size, more, err := determineTokenSize(testData)
+	if err == nil {
+		t.Error("expected an error on invalid address type")
+	}
+	testData[10] = 0
+	testData[11] = 0
+	testData[12] = 0
+	testData[13] = 4 // IPv4
+	size, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 27
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
+func Test_determineTokenSize_expanded_64bit_header_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x15}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 14
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token (in terms of size)
+	testData = []byte{0x79, // token ID
+		0x00, 0x01, 0x02, 0x03, // number of bytes in record
+		0x00, 0x01, // record version number
+		0x00, 0x01, // event type
+		0x00, 0x01, // event modifier / sub-type
+		0x00, 0x01, 0x02, 0x03, // host address type/length
+		0x00, 0x01, 0x02, 0x03, // IPv4
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // seconds timestamp
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // nanosecond timestamp
+	}
+	size, more, err := determineTokenSize(testData)
+	if err == nil {
+		t.Error("expected an error on invalid address type")
+	}
+	testData[10] = 0
+	testData[11] = 0
+	testData[12] = 0
+	testData[13] = 4 // IPv4
+	size, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 35
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
 func TestParseHeaderToken32bit(t *testing.T) {
 	data := []byte{0x14, // token ID \
 		0x00, 0x00, 0x00, 0x38, // record byte number \

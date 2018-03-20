@@ -167,7 +167,7 @@ type ExpandedHeaderToken32bit struct {
 	VersionNumber   uint16 // record version number (2 bytes)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
-	AddressType     uint8  // host address type and length (1 byte)
+	AddressType     uint32 // host address type and length (1 byte in manpage / 4 bytes in Solaris 10)
 	MachineAddress  net.IP // IPv4/6 address (4/16 bytes)
 	Seconds         uint32 // record time stamp (4 bytes)
 	NanoSeconds     uint32 // record time stamp (4 bytes)
@@ -182,7 +182,7 @@ type ExpandedHeaderToken64bit struct {
 	VersionNumber   uint16 // record version number (2 bytes)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
-	AddressType     uint8  // host address type and length (1 byte)
+	AddressType     uint32 // host address type and length (1 byte in manpage / 4 bytes in Solaris 10)
 	MachineAddress  net.IP // IPv4/6 address (4/16 bytes)
 	Seconds         uint64 // record time stamp (8 bytes)
 	NanoSeconds     uint64 // record time stamp (8 bytes)
@@ -572,6 +572,25 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		size = 1 + 2 + 4
 	case 0x14: // 32 bit Header Token
 		size = 1 + 4 + 2 + 2 + 2 + 4 + 4
+	case 0x15: // expanded 32 bit header token
+		if len(input) < 15 {
+			// need more bytes to read AdressType field
+			moreBytes = 15 - len(input)
+			return
+		}
+		addrlen, cerr := bytesToUint32(input[10:14])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		switch addrlen {
+		case 4: // IPv4 -> 4 bytes address
+			size = 1 + 4 + 2 + 2 + 2 + 4 + 4 + 4 + 4
+		case 16: // IPv6 -> 16 bytes address
+			size = 1 + 4 + 2 + 2 + 2 + 4 + 16 + 4 + 4
+		default:
+			err = fmt.Errorf("invalid value (%d) for 'address type' field in 32bit expanded header token", addrlen)
+		}
 	case 0x24: // 32 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x27: // 32 bit Return Token
@@ -583,17 +602,36 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 	case 0x2c: // iport token
 		size = 1 + 2
 	case 0x3e: // 32bit attribute token
-	size = 1 + 1 + 4 + 4 + 4 + 8 + 4
+		size = 1 + 1 + 4 + 4 + 4 + 8 + 4
 	case 0x52: // exit token
 		size = 1 + 4 + 4
 	case 0x72: // 64 bit Return Token
 		size = 1 + 1 + 8
 	case 0x73: // 64 bit attribute token
-	     size = 1 + 1 + 4 + 4 + 4 + 8 + 8
+		size = 1 + 1 + 4 + 4 + 4 + 8 + 8
 	case 0x74: // 64 bit Header Token
 		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
 	case 0x75: // 64 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
+	case 0x79: // 64 bit expanded header token
+		if len(input) < 15 {
+			// need more bytes to read AdressType field
+			moreBytes = 15 - len(input)
+			return
+		}
+		addrlen, cerr := bytesToUint32(input[10:14])
+		if cerr != nil {
+			err = cerr
+			return
+		}
+		switch addrlen {
+		case 4: // IPv4 -> 4 bytes address
+			size = 1 + 4 + 2 + 2 + 2 + 4 + 4 + 8 + 8
+		case 16: // IPv6 -> 16 bytes address
+			size = 1 + 4 + 2 + 2 + 2 + 4 + 16 + 8 + 8
+		default:
+			err = fmt.Errorf("invalid value (%d) for 'address type' field in 64bit expanded header token", addrlen)
+		}
 	case 0x7a: // expanded 32bit subject token
 		if len(input) < 34 {
 			// need more bytes to read TerminalAddressLength field
