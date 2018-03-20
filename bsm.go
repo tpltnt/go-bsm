@@ -419,7 +419,6 @@ type SubjectToken64bit struct {
 // with the addition of type/length and variable size machine
 // address information in the terminal ID.
 // This type uses 32 bit to encode the terminal port ID.
-// TODO: check length of machine address field (4 bytes for IPv6?)
 type ExpandedSubjectToken32bit struct {
 	TokenID                byte   // Token ID (1 byte): 0x7a
 	AuditID                uint32 // audit user ID (4 bytes)
@@ -431,7 +430,7 @@ type ExpandedSubjectToken32bit struct {
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint32 // terminal port ID (4 bytes)
 	TerminalAddressLength  uint8  // length of machine address (1 byte)
-	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+	TerminalMachineAddress net.IP // IP address of machine (4/16 bytes)
 }
 
 // ExpandedSubjectToken64bit (or 'expanded subject' token)
@@ -450,8 +449,8 @@ type ExpandedSubjectToken64bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint64 // terminal port ID (8 bytes)
-	TerminalAddressLength  uint8  // length of machine address
-	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+	TerminalAddressLength  uint8  // length of machine address (1 byte)
+	TerminalMachineAddress net.IP // IP address of machine (4/16 bytes)
 }
 
 // SystemVIpcToken (or 'System V IPC' token) contains the System V
@@ -596,7 +595,36 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 	case 0x75: // 64 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
 	case 0x7a: // expanded 32bit subject token
-		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 4
+		if len(input) < 34 {
+			// need more bytes to read TerminalAddressLength field
+			moreBytes = 34 - len(input)
+			return
+		}
+		addrlen := input[33]
+		switch addrlen {
+		case 4: // IPv4 -> 4 bytes address
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 4
+		case 16: // IPv6 -> 16 bytes address
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 16
+		default:
+			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 32bit expanded subject token", addrlen)
+		}
+	case 0x7c: // expanded 64bit subject token
+		if len(input) < 38 {
+			// need more bytes to read TerminalAddressLength field
+			moreBytes = 38 - len(input)
+			return
+		}
+		addrlen := input[37]
+		switch addrlen {
+		case 4: // IPv4 -> 4 bytes for address
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 1 + 4
+		case 16: // IPv6 -> 16 bytes for address
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 1 + 16
+		default:
+			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 64bit expanded subject token", addrlen)
+		}
+
 	case 0x7e: // expanded in_addr token
 		size = 1 + 1 + 16 // libbsm always allocates 16 bytes
 	default:

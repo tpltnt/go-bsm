@@ -58,7 +58,6 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 		0x73: 30, // 64bit attribute token
 		0x74: 27, // 64 bit header token
 		0x75: 41, // 64 bit subject token
-		0x7a: 38, // 32 bit expanded subject token
 		0x7e: 18, // expanded in_addr token
 	}
 	for tokenID, count := range testData {
@@ -109,6 +108,115 @@ func Test_determineTokenSize_file_token(t *testing.T) {
 	}
 	if size != (11 + 9208 + 1) { // 11 inital bytes + file name length (from hex) + NUL
 		t.Error("wrong size: expected " + strconv.Itoa(11+9208+1) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
+func Test_determineTokenSize_expanded_32bit_subject_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x7a}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 33 {
+		t.Error("expected 33 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token (in terms of size)
+	testData = []byte{0x7a, // token ID
+		0x00, 0x01, 0x02, 0x03, // audit user ID
+		0x00, 0x01, 0x02, 0x03, // effective user ID
+		0x00, 0x01, 0x02, 0x03, // effective group ID
+		0x00, 0x01, 0x02, 0x03, // real user ID
+		0x00, 0x01, 0x02, 0x03, // real group ID
+		0x00, 0x01, 0x02, 0x03, // process ID
+		0x00, 0x01, 0x02, 0x03, // audit session ID
+		0x00, 0x01, 0x02, 0x03, // terminal port ID
+		0x00,                   // length of address
+		0x00, 0x01, 0x02, 0x03, // IPv4
+	}
+	size, more, err := determineTokenSize(testData)
+	if err == nil {
+		t.Error("expected an error on invalid address length")
+	}
+	testData[33] = 4 // IPv4
+	size, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 38
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
+	}
+
+}
+
+func Test_determineTokenSize_expanded_64bit_subject_token(t *testing.T) {
+	testData := []byte{}
+
+	// missing token ID
+	_, more, err := determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 1 {
+		t.Error("expected 1 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token ID, bot no more
+	testData = []byte{0x7c}
+	_, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	moreBytes := 37
+	if more != moreBytes {
+		t.Error("expected " + strconv.Itoa(moreBytes) + " bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+
+	// correct token (in terms of size)
+	testData = []byte{0x7c, // token ID
+		0x00, 0x01, 0x02, 0x03, // audit user ID
+		0x00, 0x01, 0x02, 0x03, // effective user ID
+		0x00, 0x01, 0x02, 0x03, // effective group ID
+		0x00, 0x01, 0x02, 0x03, // real user ID
+		0x00, 0x01, 0x02, 0x03, // real group ID
+		0x00, 0x01, 0x02, 0x03, // process ID
+		0x00, 0x01, 0x02, 0x03, // audit session ID
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // terminal port ID
+		0x00,                   // length of address
+		0x00, 0x01, 0x02, 0x03, // IPv4
+	}
+	size, more, err := determineTokenSize(testData)
+	if err == nil {
+		t.Error("expected an error on invalid address length")
+	}
+	testData[37] = 4 // IPv4
+	size, more, err = determineTokenSize(testData)
+	if err != nil {
+		t.Error(err)
+	}
+	if more != 0 {
+		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	}
+	expSize := 42
+	if size != expSize {
+		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
 	}
 
 }
