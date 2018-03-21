@@ -46,9 +46,17 @@ func TestTokenFromByteInput(t *testing.T) {
 	}
 	// iport token as minimal test case
 	data = []byte{0x2c, 0x23, 0x42}
-	_, err = TokenFromByteInput(bytes.NewBuffer(data))
+	token, err := TokenFromByteInput(bytes.NewBuffer(data))
 	if err != nil {
 		t.Error(err)
+	}
+	switch v := token.(type) {
+	case IPortToken:
+		if v.PortNumber != 9026 {
+			t.Error("wrong port number in IPortToken")
+		}
+	default:
+		t.Error("expected IPortToken, but got", v)
 	}
 }
 

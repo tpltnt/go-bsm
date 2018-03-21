@@ -967,6 +967,13 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 	// process the buffer
 	switch tokenBuffer[0] {
 	case 0x2c: // iport token
+		port, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		return IPortToken{TokenID: tokenBuffer[0],
+			PortNumber: port,
+		}, nil
 	default:
 		return nil, errors.New("new token ID found: " + spew.Sdump(tokenBuffer[0]))
 	}
