@@ -18,6 +18,8 @@ import (
 	"strconv"
 )
 
+type empty interface{}  // generic type for generator
+
 // ArgToken32bit (or 'arg' token) contains information
 // about arguments of the system call.
 // These arguments are encoded in 32 bit
