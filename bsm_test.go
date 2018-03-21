@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,15 @@ func TestRecordsFromFile(t *testing.T) {
 	err := RecordsFromFile(bytes.NewBuffer(data))
 	if err == nil {
 		t.Error("one byte record should yield an error")
+	}
+	if !strings.Contains(err.Error(), "can't determine the size of the given token (type)") {
+		t.Error("unexpected error message:", err.Error())
+	}
+	// iport token as minimal test case
+	data = []byte{0x2c, 0x23, 0x42}
+	err = RecordsFromFile(bytes.NewBuffer(data))
+	if err != nil {
+		t.Error(err)
 	}
 }
 

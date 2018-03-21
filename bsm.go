@@ -3,7 +3,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
+	//"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -911,109 +911,58 @@ func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 // RecordsFromFile yields a generator for all records contained
 // in the given file.
 func RecordsFromFile(input io.Reader) error {
-	oneByte := []byte{0x00}
-	twoBytes := []byte{0x00, 0x00}
-	fourBytes := []byte{0x00, 0x00, 0x00, 0x00}
-	n, err := input.Read(oneByte)
+	tokenBuffer := []byte{0x00}
+
+	// read all the info we need
+	n, err := input.Read(tokenBuffer[0:1]) // try to use only token ID
 	if nil != err {
 		return err
 	}
 	if n != 1 {
 		return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 1")
 	}
-	tokenID := oneByte[0]
-	switch tokenID {
-	case 0x14: // HeaderToken32bit
-		token := HeaderToken32bit{
-			TokenID: tokenID,
-		}
-		// read record byte count
-		n, err = input.Read(fourBytes)
-		if nil != err {
-			return err
-		}
-		if n != 1 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
-		}
-		data, n := binary.Uvarint(fourBytes)
-		if n != 4 {
-			return errors.New("decoded wrong number of bytes when reading record byte count")
-		}
-		token.RecordByteCount = uint32(data)
+	bufidx := 1                                                   // index where to fill the buffer
+	buflen, increase, err := determineTokenSize(tokenBuffer[0:1]) // read only token ID
+	if nil != err {
+		return err
+	}
 
-		// read version number
-		n, err = input.Read(twoBytes)
-		if nil != err {
-			return err
+	if increase != 0 { // we need more bytes and test again
+		// increase token buffer to hold new bytes
+		tmp := make([]byte, increase+1)
+		copy(tmp, tokenBuffer)
+		tokenBuffer = tmp
+		for increase > 0 {
+			// try to read all bytes
+			n, err := input.Read(tokenBuffer[bufidx : bufidx+increase])
+			if nil != err {
+				return err
+			}
+			bufidx += n        // move the index the number of bytes read
+			if n != increase { // adjust how many more to read
+				increase = increase - n
+			}
 		}
-		if n != 2 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
-		}
-		data, n = binary.Uvarint(twoBytes)
-		if n != 2 {
-			return errors.New("decoded wrong number of bytes when reading version number")
-		}
-		token.VersionNumber = uint16(data)
+		buflen, increase, err = determineTokenSize(tokenBuffer)
+	}
 
-		// read event type
-		n, err = input.Read(twoBytes)
-		if nil != err {
-			return err
-		}
-		if n != 2 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
-		}
-		data, n = binary.Uvarint(twoBytes)
-		if n != 2 {
-			return errors.New("decoded wrong number of bytes when reading event type")
-		}
-		token.EventType = uint16(data)
+	// read all the (remaining) bytes we need
+	tmp := make([]byte, buflen) // increase token buffer to hold new bytes
+	copy(tmp, tokenBuffer)
+	tokenBuffer = tmp
+	n, err = input.Read(tokenBuffer[bufidx:buflen]) // read remaining bytes
+	if nil != err {
+		return err
+	}
+	if n != buflen-bufidx {
+		return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly " + strconv.Itoa(buflen-bufidx))
+	}
 
-		// read event sub-type / modifier
-		n, err = input.Read(twoBytes)
-		if nil != err {
-			return err
-		}
-		if n != 2 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 2")
-		}
-		data, n = binary.Uvarint(twoBytes)
-		if n != 2 {
-			return errors.New("decoded wrong number of bytes when reading event modifier")
-		}
-		token.EventModifier = uint16(data)
-
-		// read seconds
-		n, err = input.Read(fourBytes)
-		if nil != err {
-			return err
-		}
-		if n != 4 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
-		}
-		data, n = binary.Uvarint(twoBytes)
-		if n != 4 {
-			return errors.New("decoded wrong number of bytes when reading timestamp seconds")
-		}
-		token.Seconds = uint32(data)
-
-		// read nanoseconds
-		n, err = input.Read(fourBytes)
-		if nil != err {
-			return err
-		}
-		if n != 4 {
-			return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 4")
-		}
-		data, n = binary.Uvarint(twoBytes)
-		if n != 4 {
-			return errors.New("decoded wrong number of bytes when reading timestamp nanoseconds")
-		}
-		token.NanoSeconds = uint32(data)
-
-		fmt.Println(spew.Sdump(token))
+	// process the buffer
+	switch tokenBuffer[0] {
+	case 0x2c: // iport token
 	default:
-		return errors.New("new token ID found: " + spew.Sdump(tokenID))
+		return errors.New("new token ID found: " + spew.Sdump(tokenBuffer[0]))
 	}
 	return nil
 }
