@@ -35,9 +35,9 @@ func Test_bytesToUint32(t *testing.T) {
 	}
 }
 
-func TestRecordsFromFile(t *testing.T) {
+func TestTokenFromByteInput(t *testing.T) {
 	data := []byte{0x00}
-	err := RecordsFromFile(bytes.NewBuffer(data))
+	_, err := TokenFromByteInput(bytes.NewBuffer(data))
 	if err == nil {
 		t.Error("one byte record should yield an error")
 	}
@@ -46,7 +46,7 @@ func TestRecordsFromFile(t *testing.T) {
 	}
 	// iport token as minimal test case
 	data = []byte{0x2c, 0x23, 0x42}
-	err = RecordsFromFile(bytes.NewBuffer(data))
+	_, err = TokenFromByteInput(bytes.NewBuffer(data))
 	if err != nil {
 		t.Error(err)
 	}

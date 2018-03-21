@@ -18,7 +18,7 @@ import (
 	"strconv"
 )
 
-type empty interface{}  // generic type for generator
+type empty interface{} // generic type for generator
 
 // ArgToken32bit (or 'arg' token) contains information
 // about arguments of the system call.
@@ -910,23 +910,27 @@ func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 	return token, nil
 }
 
-// RecordsFromFile yields a generator for all records contained
-// in the given file.
-func RecordsFromFile(input io.Reader) error {
+// RecordsFromByteInput yields a generator for all records contained
+// in the given byte input. This input has to support the Reader interface
+// and may be a file or a device.
+
+// TokenFromByteInput converts bytes read from a given input
+// to a BSM token.
+func TokenFromByteInput(input io.Reader) (empty, error) {
 	tokenBuffer := []byte{0x00}
 
 	// read all the info we need
 	n, err := input.Read(tokenBuffer[0:1]) // try to use only token ID
 	if nil != err {
-		return err
+		return nil, err
 	}
 	if n != 1 {
-		return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 1")
+		return nil, errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly 1")
 	}
 	bufidx := 1                                                   // index where to fill the buffer
 	buflen, increase, err := determineTokenSize(tokenBuffer[0:1]) // read only token ID
 	if nil != err {
-		return err
+		return nil, err
 	}
 
 	if increase != 0 { // we need more bytes and test again
@@ -938,7 +942,7 @@ func RecordsFromFile(input io.Reader) error {
 			// try to read all bytes
 			n, err := input.Read(tokenBuffer[bufidx : bufidx+increase])
 			if nil != err {
-				return err
+				return nil, err
 			}
 			bufidx += n        // move the index the number of bytes read
 			if n != increase { // adjust how many more to read
@@ -954,19 +958,19 @@ func RecordsFromFile(input io.Reader) error {
 	tokenBuffer = tmp
 	n, err = input.Read(tokenBuffer[bufidx:buflen]) // read remaining bytes
 	if nil != err {
-		return err
+		return nil, err
 	}
 	if n != buflen-bufidx {
-		return errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly " + strconv.Itoa(buflen-bufidx))
+		return nil, errors.New("read " + strconv.Itoa(n) + " bytes, but wanted exactly " + strconv.Itoa(buflen-bufidx))
 	}
 
 	// process the buffer
 	switch tokenBuffer[0] {
 	case 0x2c: // iport token
 	default:
-		return errors.New("new token ID found: " + spew.Sdump(tokenBuffer[0]))
+		return nil, errors.New("new token ID found: " + spew.Sdump(tokenBuffer[0]))
 	}
-	return nil
+	return nil, nil
 }
 
 func main() {
