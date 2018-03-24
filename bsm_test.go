@@ -862,4 +862,21 @@ func Test_small_example_token(t *testing.T) {
 		t.Error("unexpected token found")
 	}
 
+	// parse third token
+	token, err = TokenFromByteInput(input)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	switch v := token.(type) {
+	case ReturnToken32bit:
+		if v.ErrorNumber != 0 {
+			t.Error("unexpected error number")
+		}
+		if v.ReturnValue != 0 {
+			t.Error("unexpected return value")
+		}
+	default:
+		t.Error("unexpected token found")
+	}
+
 }
