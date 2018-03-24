@@ -969,6 +969,18 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			return nil, err
 		}
 		return token, nil
+
+	case 0x27: // 32 bit return token
+		rval, err := bytesToUint32(tokenBuffer[2:6])
+		if err != nil {
+			return nil, err
+		}
+		return ReturnToken32bit{
+			TokenID:     tokenBuffer[0],
+			ErrorNumber: tokenBuffer[1],
+			ReturnValue: rval,
+		}, nil
+
 	case 0x28: // text token
 		length, err := bytesToUint16(tokenBuffer[1:3])
 		if err != nil {
@@ -979,6 +991,7 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			TextLength: length,
 			Text:       string(tokenBuffer[3 : length+2]), // 3 bytes inital offset - 1 NUL byte = 2 bytes
 		}, nil
+
 	case 0x2c: // iport token
 		port, err := bytesToUint16(tokenBuffer[1:3])
 		if err != nil {
@@ -987,6 +1000,7 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		return IPortToken{TokenID: tokenBuffer[0],
 			PortNumber: port,
 		}, nil
+
 	default:
 		return nil, fmt.Errorf("new token ID found: 0x%x", tokenBuffer[0])
 	}
