@@ -931,7 +931,7 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 
 	if increase != 0 { // we need more bytes and test again
 		// increase token buffer to hold new bytes
-		tmp := make([]byte, increase+1)
+		tmp := make([]byte, 1+increase) // we have read one byte already
 		copy(tmp, tokenBuffer)
 		tokenBuffer = tmp
 		for increase > 0 {
@@ -942,12 +942,13 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			}
 			bufidx += n        // move the index the number of bytes read
 			if n != increase { // adjust how many more to read
-				increase = increase - n
+				increase -= n
+			} else {
+				increase = 0 // no more bytes need to be read
 			}
 		}
 		buflen, increase, err = determineTokenSize(tokenBuffer)
 	}
-
 	// read all the (remaining) bytes we need
 	tmp := make([]byte, buflen) // increase token buffer to hold new bytes
 	copy(tmp, tokenBuffer)
