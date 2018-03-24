@@ -879,4 +879,17 @@ func Test_small_example_token(t *testing.T) {
 		t.Error("unexpected token found")
 	}
 
+	// parse fourth (last) token
+	token, err = TokenFromByteInput(input)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	switch v := token.(type) {
+	case TrailerToken:
+		if v.RecordByteCount != 0 {
+			t.Error("unexpected record byte count")
+		}
+	default:
+		t.Error("unexpected token found")
+	}
 }

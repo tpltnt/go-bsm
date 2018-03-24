@@ -489,9 +489,9 @@ type TextToken struct {
 // contains a magic number, and length that can be used to validate that
 // the record was read properly.
 type TrailerToken struct {
-	TokenID          byte   // Token ID (1 byte): 0x13
-	TrailerMagic     uint16 // trailer magic number (2 bytes): 0xb105
-	RecordByteCoount uint32 // number of bytes in record (4 bytes)
+	TokenID         byte   // Token ID (1 byte): 0x13
+	TrailerMagic    uint16 // trailer magic number (2 bytes): 0xb105
+	RecordByteCount uint32 // number of bytes in record (4 bytes)
 }
 
 // ZonenameToken (or 'zonename' token) holds a NUL-terminated string
@@ -963,6 +963,21 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 
 	// process the buffer
 	switch tokenBuffer[0] {
+	case 0x13: // trailer token
+		tmagic, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		bcount, err := bytesToUint32(tokenBuffer[3:6])
+		if err != nil {
+			return nil, err
+		}
+		return TrailerToken{
+			TokenID:         tokenBuffer[0],
+			TrailerMagic:    tmagic,
+			RecordByteCount: bcount,
+		}, nil
+
 	case 0x14: // 32 bit header token
 		token, err := ParseHeaderToken32bit(tokenBuffer)
 		if err != nil {
