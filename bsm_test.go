@@ -834,6 +834,7 @@ func Test_small_example_token(t *testing.T) {
 	}
 	input := bytes.NewBuffer(data)
 
+	// --- parse tokens single handed ---
 	// parse first token
 	token, err := TokenFromByteInput(input)
 	if err != nil {
@@ -891,5 +892,15 @@ func Test_small_example_token(t *testing.T) {
 		}
 	default:
 		t.Error("unexpected token found")
+	}
+
+	// --- try to parse complete record ---
+	input = bytes.NewBuffer(data)
+	rec, err := ReadBsmRecord(input)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if 2 != len(rec.Tokens) {
+		t.Error("unexpected number od tokens in BSM record")
 	}
 }

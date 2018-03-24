@@ -502,6 +502,13 @@ type ZonenameToken struct {
 	Zonename       string // Zonename string including NUL
 }
 
+// BsmRecord represents a BSM record
+type BsmRecord struct {
+	Seconds     uint64  // record time stamp (8 bytes)
+	NanoSeconds uint64  // record time stamp (8 bytes)
+	Tokens      []empty // generic list of all tokens
+}
+
 // Go has this unexpected behaviour, where Uvarint() aborts
 // after reading the first byte if it is 0x00 (no matter
 // what comes later) and can eat max 2 bytes. I expected 8 since
@@ -1020,6 +1027,55 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		return nil, fmt.Errorf("new token ID found: 0x%x", tokenBuffer[0])
 	}
 	return nil, nil
+}
+
+// ReadBsmRecord read a complete BSM record from the given byte source.
+// TODO: support potential file token at the beginning of a stream
+// TODO: check record size for consistency
+func ReadBsmRecord(input io.Reader) (BsmRecord, error) {
+	rec := BsmRecord{}
+
+	// start: header token
+	header, err := TokenFromByteInput(input)
+	if err != nil {
+		return rec, err
+	}
+
+	switch v := header.(type) {
+	case HeaderToken32bit:
+		rec.Seconds = uint64(v.Seconds)
+		rec.NanoSeconds = uint64(v.NanoSeconds)
+	case HeaderToken64bit:
+		rec.Seconds = v.Seconds
+		rec.NanoSeconds = v.NanoSeconds
+	case ExpandedHeaderToken32bit:
+		rec.Seconds = uint64(v.Seconds)
+		rec.NanoSeconds = uint64(v.NanoSeconds)
+	case ExpandedHeaderToken64bit:
+		rec.Seconds = v.Seconds
+		rec.NanoSeconds = v.NanoSeconds
+	default:
+		return rec, errors.New("no header token found")
+	}
+
+	nextToken, err := TokenFromByteInput(input)
+	if err != nil {
+		return rec, err
+	}
+	_, isEnd := nextToken.(TrailerToken) // assert next token to be trailer and check success
+	for !isEnd {
+		// append the current token to list (in record)
+		rec.Tokens = append(rec.Tokens, nextToken)
+
+		// check if the next (trailer) token indicates the end of record
+		nextToken, err := TokenFromByteInput(input)
+		if err != nil {
+			return rec, err
+		}
+		_, isEnd = nextToken.(TrailerToken) // assert next token to be trailer and check success
+	}
+
+	return rec, nil
 }
 
 func main() {
