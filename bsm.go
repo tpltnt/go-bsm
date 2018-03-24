@@ -969,6 +969,16 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			return nil, err
 		}
 		return token, nil
+	case 0x28: // text token
+		length, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		return TextToken{
+			TokenID:    tokenBuffer[0],
+			TextLength: length,
+			Text:       string(tokenBuffer[3:length+2]), // 3 bytes inital offset - 1 NUL byte = 2 bytes
+		}, nil
 	case 0x2c: // iport token
 		port, err := bytesToUint16(tokenBuffer[1:3])
 		if err != nil {
