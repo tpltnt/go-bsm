@@ -837,7 +837,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in expanded socket token", addrlen)
 		}
 	default:
-		err = errors.New("can't determine the size of the given token (type)")
+		err = fmt.Errorf("can't determine the size of the given token (type): 0x%x", input[0])
 	}
 	return
 }
