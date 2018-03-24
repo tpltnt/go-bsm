@@ -7,7 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"io"
@@ -975,7 +975,7 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			PortNumber: port,
 		}, nil
 	default:
-		return nil, errors.New("new token ID found: " + spew.Sdump(tokenBuffer[0]))
+		return nil, fmt.Errorf("new token ID found: 0x%x", tokenBuffer[0])
 	}
 	return nil, nil
 }
