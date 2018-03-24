@@ -139,7 +139,7 @@ type GroupsToken struct {
 type HeaderToken32bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x14
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
-	VersionNumber   uint16 // record version number (2 bytes)
+	VersionNumber   byte   // BSM record version number (1 byte)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
 	Seconds         uint32 // record time stamp (4 bytes)
@@ -154,7 +154,7 @@ type HeaderToken32bit struct {
 type HeaderToken64bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x74
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
-	VersionNumber   uint16 // record version number (2 bytes)
+	VersionNumber   byte   // BSM record version number (1 byte)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
 	Seconds         uint64 // record time stamp (8 bytes)
@@ -167,7 +167,7 @@ type HeaderToken64bit struct {
 type ExpandedHeaderToken32bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x15
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
-	VersionNumber   uint16 // record version number (2 bytes)
+	VersionNumber   byte   // BSM record version number (2 bytes)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
 	AddressType     uint32 // host address type and length (1 byte in manpage / 4 bytes in Solaris 10)
@@ -182,7 +182,7 @@ type ExpandedHeaderToken32bit struct {
 type ExpandedHeaderToken64bit struct {
 	TokenID         byte   // Token ID (1 byte): 0x79
 	RecordByteCount uint32 // number of bytes in record (4 bytes)
-	VersionNumber   uint16 // record version number (2 bytes)
+	VersionNumber   byte   // BSM record version number (2 bytes)
 	EventType       uint16 // event type (2 bytes)
 	EventModifier   uint16 // event sub-type (2 bytes)
 	AddressType     uint32 // host address type and length (1 byte in manpage / 4 bytes in Solaris 10)
@@ -574,7 +574,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 	case 0x13: // trailer token
 		size = 1 + 2 + 4
 	case 0x14: // 32 bit Header Token
-		size = 1 + 4 + 2 + 2 + 2 + 4 + 4
+		size = 1 + 4 + 1 + 2 + 2 + 4 + 4
 	case 0x15: // expanded 32 bit header token
 		if len(input) < 15 {
 			// need more bytes to read AdressType field
@@ -588,9 +588,9 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		}
 		switch addrlen {
 		case 4: // IPv4 -> 4 bytes address
-			size = 1 + 4 + 2 + 2 + 2 + 4 + 4 + 4 + 4
+			size = 1 + 4 + 1 + 2 + 2 + 4 + 4 + 4 + 4
 		case 16: // IPv6 -> 16 bytes address
-			size = 1 + 4 + 2 + 2 + 2 + 4 + 16 + 4 + 4
+			size = 1 + 4 + 1 + 2 + 2 + 4 + 16 + 4 + 4
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in 32bit expanded header token", addrlen)
 		}
@@ -761,7 +761,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 	case 0x73: // 64 bit attribute token
 		size = 1 + 1 + 4 + 4 + 4 + 8 + 8
 	case 0x74: // 64 bit Header Token
-		size = 1 + 4 + 2 + 2 + 2 + 8 + 8
+		size = 1 + 4 + 1 + 2 + 2 + 8 + 8
 	case 0x75: // 64 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 + 4
 	case 0x77: // 64 bit process token
@@ -848,7 +848,7 @@ func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 	token := HeaderToken32bit{}
 
 	// (static) length check
-	if len(input) != 19 {
+	if len(input) != 18 {
 		return token, errors.New("invalid length of 32bit header token")
 	}
 
@@ -868,16 +868,12 @@ func ParseHeaderToken32bit(input []byte) (HeaderToken32bit, error) {
 	token.RecordByteCount = data32
 	ptr += 4
 
-	// read version number (2 bytes)
-	data16, err := bytesToUint16(input[ptr : ptr+2])
-	if err != nil {
-		return token, err
-	}
-	token.VersionNumber = data16
-	ptr += 2
+	// read BSM version number (1 byte)
+	token.VersionNumber = input[ptr]
+	ptr += 1
 
 	// read event type (2 bytes)
-	data16, err = bytesToUint16(input[ptr : ptr+2])
+	data16, err := bytesToUint16(input[ptr : ptr+2])
 	if err != nil {
 		return token, err
 	}
