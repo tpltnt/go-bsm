@@ -482,7 +482,7 @@ type SystemVIpcPermissionToken struct {
 type TextToken struct {
 	TokenID    byte   // Token ID (1 byte): 0x28
 	TextLength uint16 // length of text string including NUL (2 bytes)
-	Text       string // Text string incl. NUL (TextLength bytes + 1 NUL)
+	Text       string // Text string incl. NUL (TextLength bytes)
 }
 
 // TrailerToken (or 'trailer' terminates) a BSM audit record. This token
@@ -653,7 +653,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = cerr
 			return
 		}
-		size = 1 + 2 + int(count) + 1
+		size = 1 + 2 + int(count)
 	case 0x2a: // in_addr token
 		size = 1 + 4
 	case 0x2b: // ip token

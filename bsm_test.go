@@ -680,7 +680,7 @@ func Test_determineTokenSize_text_token(t *testing.T) {
 	if more != 0 {
 		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
 	}
-	expSize := 7
+	expSize := 6
 	if size != expSize {
 		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
 	}
