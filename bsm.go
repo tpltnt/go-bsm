@@ -966,6 +966,12 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 
 	// process the buffer
 	switch tokenBuffer[0] {
+	case 0x14: // 32 bit header token
+		token, err := ParseHeaderToken32bit(tokenBuffer)
+		if err != nil {
+			return nil, err
+		}
+		return token, nil
 	case 0x2c: // iport token
 		port, err := bytesToUint16(tokenBuffer[1:3])
 		if err != nil {
