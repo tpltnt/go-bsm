@@ -845,9 +845,21 @@ func Test_small_example_token(t *testing.T) {
 		t.Error("unexpected token found")
 	}
 
-	/*/ parse second token
+	// parse second token
 	token, err = TokenFromByteInput(input)
 	if err != nil {
 		t.Error(err.Error())
-	}*/
+	}
+	switch v := token.(type) {
+	case TextToken:
+		if v.TextLength != 22 {
+			t.Error("wrong text length")
+		}
+		if v.Text != "auditd::Audit startup" {
+			t.Error("unexpected text")
+		}
+	default:
+		t.Error("unexpected token found")
+	}
+
 }
