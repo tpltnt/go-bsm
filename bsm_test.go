@@ -903,4 +903,14 @@ func Test_small_example_token(t *testing.T) {
 	if 2 != len(rec.Tokens) {
 		t.Error("unexpected number od tokens in BSM record")
 	}
+
+	// --- try the generator ---
+	input = bytes.NewBuffer(data)
+	rcount := 0
+	for _ = range RecordGenerator(input) {
+		rcount += 1
+		if rcount > 2 { // original + EOF
+			t.Error("more records than expected")
+		}
+	}
 }

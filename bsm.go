@@ -1032,8 +1032,8 @@ type BsmRecord struct {
 // ParsingResult encapsulates the result of the parsing
 // process to be used in conjunction with channels.
 type ParsingResult struct {
-     Record BsmRecord
-     Error Error
+	Record BsmRecord
+	Error  error
 }
 
 // ReadBsmRecord read a complete BSM record from the given byte source.
@@ -1083,6 +1083,31 @@ func ReadBsmRecord(input io.Reader) (BsmRecord, error) {
 	}
 
 	return rec, nil
+}
+
+// RecordGenerator yields a continous stream of BSM records
+// until the source is exhausted.
+func RecordGenerator(input io.Reader) chan ParsingResult {
+	resChan := make(chan ParsingResult)
+
+	// cookie-cutter iterator
+	go func() {
+		for { // extraction loop
+			rec, err := ReadBsmRecord(input)
+			res := ParsingResult{
+				Record: rec,
+				Error:  err,
+			}
+			resChan <- res
+			// leave source is exhausted
+			if res.Error == io.EOF {
+				break
+			}
+		}
+		close(resChan)
+	}()
+
+	return resChan
 }
 
 func main() {
