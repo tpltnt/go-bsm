@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -910,6 +911,22 @@ func Test_small_example_token(t *testing.T) {
 	for _ = range RecordGenerator(input) {
 		rcount += 1
 		if rcount > 2 { // original + EOF
+			t.Error("more records than expected")
+		}
+	}
+}
+
+func Test_reading_from_file(t *testing.T) {
+	file, err := os.Open("start_stop.bsm")
+	if err != nil {
+		t.Error(err)
+	}
+	defer file.Close()
+
+	rcount := 0
+	for _ = range RecordGenerator(file) {
+		rcount += 1
+		if rcount > 3 { // start + stop + EOF
 			t.Error("more records than expected")
 		}
 	}
