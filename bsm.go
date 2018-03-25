@@ -502,13 +502,6 @@ type ZonenameToken struct {
 	Zonename       string // Zonename string including NUL
 }
 
-// BsmRecord represents a BSM record
-type BsmRecord struct {
-	Seconds     uint64  // record time stamp (8 bytes)
-	NanoSeconds uint64  // record time stamp (8 bytes)
-	Tokens      []empty // generic list of all tokens
-}
-
 // Go has this unexpected behaviour, where Uvarint() aborts
 // after reading the first byte if it is 0x00 (no matter
 // what comes later) and can eat max 2 bytes. I expected 8 since
@@ -1027,6 +1020,20 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		return nil, fmt.Errorf("new token ID found: 0x%x", tokenBuffer[0])
 	}
 	return nil, nil
+}
+
+// BsmRecord represents a BSM record.
+type BsmRecord struct {
+	Seconds     uint64  // record time stamp (8 bytes)
+	NanoSeconds uint64  // record time stamp (8 bytes)
+	Tokens      []empty // generic list of all tokens
+}
+
+// ParsingResult encapsulates the result of the parsing
+// process to be used in conjunction with channels.
+type ParsingResult struct {
+     Record BsmRecord
+     Error Error
 }
 
 // ReadBsmRecord read a complete BSM record from the given byte source.
