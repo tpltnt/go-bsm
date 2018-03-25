@@ -985,6 +985,65 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		}
 		return token, nil
 
+	case 0x24: // 32 bit subject token
+		token := SubjectToken32bit{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint32(tokenBuffer[1:5])
+		if err != nil {
+			return nil, err
+		}
+		token.AuditID = val
+
+		val, err = bytesToUint32(tokenBuffer[5:9])
+		if err != nil {
+			return nil, err
+		}
+		token.EffectiveUserID = val
+
+		val, err = bytesToUint32(tokenBuffer[9:13])
+		if err != nil {
+			return nil, err
+		}
+		token.EffectiveGroupID = val
+
+		val, err = bytesToUint32(tokenBuffer[13:17])
+		if err != nil {
+			return nil, err
+		}
+		token.RealUserID = val
+
+		val, err = bytesToUint32(tokenBuffer[17:21])
+		if err != nil {
+			return nil, err
+		}
+		token.RealGroupID = val
+
+		val, err = bytesToUint32(tokenBuffer[21:25])
+		if err != nil {
+			return nil, err
+		}
+		token.ProcessID = val
+
+		val, err = bytesToUint32(tokenBuffer[25:29])
+		if err != nil {
+			return nil, err
+		}
+		token.SessionID = val
+
+		val, err = bytesToUint32(tokenBuffer[29:33])
+		if err != nil {
+			return nil, err
+		}
+		token.TerminalPortID = val
+
+		token.TerminalMachineAddress = net.IPv4(
+			tokenBuffer[33],
+			tokenBuffer[34],
+			tokenBuffer[35],
+			tokenBuffer[36])
+		return token, nil
+
 	case 0x27: // 32 bit return token
 		rval, err := bytesToUint32(tokenBuffer[2:6])
 		if err != nil {
