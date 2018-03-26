@@ -385,7 +385,7 @@ func Test_determineTokenSize_32bit_arg_token(t *testing.T) {
 		0x00,                   // argument ID
 		0x00, 0x01, 0x02, 0x03, // argument value
 		0x00, 0x04, // length
-		0x41, 0x41, 0x41, 0x41, 0x00, // actual string
+		0x41, 0x41, 0x41, 0x00, // actual string
 	}
 	size, more, err := determineTokenSize(testData)
 	if err != nil {
@@ -394,7 +394,7 @@ func Test_determineTokenSize_32bit_arg_token(t *testing.T) {
 	if more != 0 {
 		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
 	}
-	expSize := 13
+	expSize := 12
 	if size != expSize {
 		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
 	}

@@ -25,7 +25,7 @@ type empty interface{} // generic type for generator
 // These arguments are encoded in 32 bit
 type ArgToken32bit struct {
 	TokenID       byte   // Token ID (1 byte): 0x2d
-	ArgumentID    uint8  // argument ID (1 byte)
+	ArgumentID    uint8  // argument ID/number (1 byte)
 	ArgumentValue uint32 // argument value (4 bytes)
 	Length        uint16 // length of the text (2 bytes)
 	Text          string // the string including nul (Length + 1 NUL bytes)
@@ -36,7 +36,7 @@ type ArgToken32bit struct {
 // These arguments are encoded in 32 bit
 type ArgToken64bit struct {
 	TokenID       byte   // Token ID (1 byte): 0x71
-	ArgumentID    uint8  // argument ID (1 byte)
+	ArgumentID    uint8  // argument ID/number (1 byte)
 	ArgumentValue uint64 // argument value (8 bytes)
 	Length        uint16 // length of the text (2 bytes)
 	Text          string // the string including nul (Length + 1 NUL bytes)
@@ -671,7 +671,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = cerr
 			return
 		}
-		size = 1 + 1 + 4 + 2 + int(strlen) + 1
+		size = 1 + 1 + 4 + 2 + int(strlen)
 	case 0x2e: // socket token
 		size = 1 + 2 + 2 + 4
 	case 0x2f: // seq token
@@ -1078,6 +1078,24 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		return IPortToken{TokenID: tokenBuffer[0],
 			PortNumber: port,
 		}, nil
+
+	case 0x2d: // 32bit arg_token
+		token := ArgToken32bit{
+			TokenID:    tokenBuffer[0],
+			ArgumentID: tokenBuffer[1],
+		}
+		val, err := bytesToUint32(tokenBuffer[2:6])
+		if err != nil {
+			return nil, err
+		}
+		token.ArgumentValue = val
+		length, err := bytesToUint16(tokenBuffer[6:8])
+		if err != nil {
+			return nil, err
+		}
+		token.Length = length
+		token.Text = string(tokenBuffer[8 : length+7])
+		return token, nil
 
 	case 0x7a: // expanded 32bit subject token
 		token := ExpandedSubjectToken32bit{
