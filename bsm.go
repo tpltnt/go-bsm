@@ -432,7 +432,7 @@ type ExpandedSubjectToken32bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // audit session ID (4 bytes)
 	TerminalPortID         uint32 // terminal port ID (4 bytes)
-	TerminalAddressLength  uint8  // length of machine address (1 byte)
+	TerminalAddressLength  uint32 // length of machine address (4 bytes)
 	TerminalMachineAddress net.IP // IP address of machine (4/16 bytes)
 }
 
@@ -786,17 +786,21 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in 64bit expanded header token", addrlen)
 		}
 	case 0x7a: // expanded 32bit subject token
-		if len(input) < 34 {
+		if len(input) < 37 {
 			// need more bytes to read TerminalAddressLength field
-			moreBytes = 34 - len(input)
+			moreBytes = 37 - len(input)
 			return
 		}
-		addrlen := input[33]
+		addrlen, cerr := bytesToUint32(input[33:37])
+		if cerr != nil {
+			err = cerr
+			return
+		}
 		switch addrlen {
 		case 4: // IPv4 -> 4 bytes address
-			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 4
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 		case 16: // IPv6 -> 16 bytes address
-			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 16
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 16
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 32bit expanded subject token", addrlen)
 		}

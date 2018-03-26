@@ -155,8 +155,8 @@ func Test_determineTokenSize_expanded_32bit_subject_token(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if more != 33 {
-		t.Error("expected 33 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
+	if more != 36 {
+		t.Error("expected 36 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
 	}
 
 	// correct token (in terms of size)
@@ -169,14 +169,14 @@ func Test_determineTokenSize_expanded_32bit_subject_token(t *testing.T) {
 		0x00, 0x01, 0x02, 0x03, // process ID
 		0x00, 0x01, 0x02, 0x03, // audit session ID
 		0x00, 0x01, 0x02, 0x03, // terminal port ID
-		0x00,                   // length of address
+		0x00, 0x00, 0x00, 0x00, // length of address
 		0x00, 0x01, 0x02, 0x03, // IPv4
 	}
 	size, more, err := determineTokenSize(testData)
 	if err == nil {
 		t.Error("expected an error on invalid address length")
 	}
-	testData[33] = 4 // IPv4
+	testData[36] = 4 // IPv4
 	size, more, err = determineTokenSize(testData)
 	if err != nil {
 		t.Error(err)
@@ -184,7 +184,7 @@ func Test_determineTokenSize_expanded_32bit_subject_token(t *testing.T) {
 	if more != 0 {
 		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
 	}
-	expSize := 38
+	expSize := 41
 	if size != expSize {
 		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
 	}
@@ -1011,6 +1011,7 @@ func Test_parsing_root_login(t *testing.T) {
 		t.Error("unexpected number of tokens in BSM record")
 	}
 
+	// record with expanded 32 bit subject token
 	rec, err = ReadBsmRecord(input)
 	if err != nil {
 		t.Error(err.Error())
@@ -1018,7 +1019,6 @@ func Test_parsing_root_login(t *testing.T) {
 	if 3 != len(rec.Tokens) { // subject + text + return
 		t.Error("unexpected number of tokens in BSM record")
 	}
-
 }
 
 func Test_reading_from_file(t *testing.T) {
