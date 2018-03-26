@@ -1019,6 +1019,32 @@ func Test_parsing_root_login(t *testing.T) {
 	if 3 != len(rec.Tokens) { // subject + text + return
 		t.Error("unexpected number of tokens in BSM record")
 	}
+
+	subjectToken, ok := rec.Tokens[0].(ExpandedSubjectToken32bit)
+	if !ok {
+		t.Error("asserting ExpandedSubjectToken32bit type failed")
+	}
+	if subjectToken.EffectiveUserID != 0 {
+		t.Error("wrong effective user ID")
+	}
+
+	textToken, ok := rec.Tokens[1].(TextToken)
+	if !ok {
+		t.Error("asserting TextToken type failed")
+	}
+	if textToken.Text != "successful login root" {
+		t.Error("unexpected string in text token")
+	}
+
+	// record with plain text token
+	rec, err = ReadBsmRecord(input)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	if 2 != len(rec.Tokens) { // text + return
+		t.Error("unexpected number of tokens in BSM record")
+	}
+
 }
 
 func Test_reading_from_file(t *testing.T) {
