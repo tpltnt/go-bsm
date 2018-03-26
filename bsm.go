@@ -1204,13 +1204,14 @@ func ReadBsmRecord(input io.Reader) (BsmRecord, error) {
 	if err != nil {
 		return rec, err
 	}
+
 	_, isEnd := nextToken.(TrailerToken) // assert next token to be trailer and check success
 	for !isEnd {
 		// append the current token to list (in record)
 		rec.Tokens = append(rec.Tokens, nextToken)
 
 		// check if the next (trailer) token indicates the end of record
-		nextToken, err := TokenFromByteInput(input)
+		nextToken, err = TokenFromByteInput(input)
 		if err != nil {
 			return rec, err
 		}
