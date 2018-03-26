@@ -1079,6 +1079,78 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			PortNumber: port,
 		}, nil
 
+	case 0x7a: // expanded 32bit subject token
+		token := ExpandedSubjectToken32bit{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint32(tokenBuffer[1:5])
+		if err != nil {
+			return nil, err
+		}
+		token.AuditID = val
+
+		val, err = bytesToUint32(tokenBuffer[5:9])
+		if err != nil {
+			return nil, err
+		}
+		token.EffectiveUserID = val
+
+		val, err = bytesToUint32(tokenBuffer[9:13])
+		if err != nil {
+			return nil, err
+		}
+		token.EffectiveGroupID = val
+
+		val, err = bytesToUint32(tokenBuffer[13:17])
+		if err != nil {
+			return nil, err
+		}
+		token.RealUserID = val
+
+		val, err = bytesToUint32(tokenBuffer[17:21])
+		if err != nil {
+			return nil, err
+		}
+		token.RealGroupID = val
+
+		val, err = bytesToUint32(tokenBuffer[21:25])
+		if err != nil {
+			return nil, err
+		}
+		token.ProcessID = val
+
+		val, err = bytesToUint32(tokenBuffer[25:29])
+		if err != nil {
+			return nil, err
+		}
+		token.SessionID = val
+
+		val, err = bytesToUint32(tokenBuffer[29:33])
+		if err != nil {
+			return nil, err
+		}
+		token.TerminalPortID = val
+
+		val, err = bytesToUint32(tokenBuffer[33:37])
+		if err != nil {
+			return nil, err
+		}
+		token.TerminalAddressLength = val
+
+		switch val {
+		case 4:
+			token.TerminalMachineAddress = net.IPv4(
+				tokenBuffer[37],
+				tokenBuffer[38],
+				tokenBuffer[39],
+				tokenBuffer[40])
+		case 16:
+			token.TerminalMachineAddress = tokenBuffer[37:53]
+		default:
+			return nil, errors.New("can't process length of terminal machine address")
+		}
+		return token, nil
+
 	default:
 		return nil, fmt.Errorf("new token ID found: 0x%x", tokenBuffer[0])
 	}
