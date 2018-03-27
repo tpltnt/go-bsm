@@ -507,6 +507,21 @@ type ZonenameToken struct {
 // what comes later) and can eat max 2 bytes. I expected 8 since
 // Uvarint() returns a uint64. Anyhow, I decided to roll my own.
 
+// Convert bytes to uint64 (and abstract away some quirks).
+func bytesToUint64(input []byte) (uint64, error) {
+	if 8 < len(input) {
+		return 0, errors.New("more than four bytes given -> risk of overflow")
+	}
+	result := uint64(0)
+	for i := 0; i < len(input); i++ {
+		coeff := uint64(input[i])
+		exp := float64(len(input) - i - 1)
+		powerOf256 := uint64(math.Pow(float64(256), exp))
+		result += coeff * powerOf256
+	}
+	return result, nil
+}
+
 // Convert bytes to uint32 (and abstract away some quirks).
 func bytesToUint32(input []byte) (uint32, error) {
 	if 4 < len(input) {
@@ -1110,6 +1125,38 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		token.Text = string(tokenBuffer[8 : length+7])
 		return token, nil
 
+	case 0x3e: // 32bit attribute token
+		token := AttributeToken32bit{
+			TokenID:        tokenBuffer[0],
+			FileAccessMode: tokenBuffer[1],
+		}
+		val, err := bytesToUint32(tokenBuffer[2:6])
+		if err != nil {
+			return nil, err
+		}
+		token.OwnerUserID = val
+		val, err = bytesToUint32(tokenBuffer[6:10])
+		if err != nil {
+			return nil, err
+		}
+		token.OwnerGroupID = val
+		val, err = bytesToUint32(tokenBuffer[10:14])
+		if err != nil {
+			return nil, err
+		}
+		token.FileSystemID = val
+		fsval, err := bytesToUint64(tokenBuffer[14:22])
+		if err != nil {
+			return nil, err
+		}
+		token.FileSystemNodeID = fsval
+		val, err = bytesToUint32(tokenBuffer[22:26])
+		if err != nil {
+			return nil, err
+		}
+		token.Device = val
+		return token, nil
+
 	case 0x60: // zonename token
 		token := ZonenameToken{
 			TokenID: tokenBuffer[0],
@@ -1120,6 +1167,38 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		}
 		token.ZonenameLength = length
 		token.Zonename = string(tokenBuffer[3 : length+2])
+		return token, nil
+
+	case 0x73: // 64 bit attribute token
+		token := AttributeToken64bit{
+			TokenID:        tokenBuffer[0],
+			FileAccessMode: tokenBuffer[1],
+		}
+		val, err := bytesToUint32(tokenBuffer[2:6])
+		if err != nil {
+			return nil, err
+		}
+		token.OwnerUserID = val
+		val, err = bytesToUint32(tokenBuffer[6:10])
+		if err != nil {
+			return nil, err
+		}
+		token.OwnerGroupID = val
+		val, err = bytesToUint32(tokenBuffer[10:14])
+		if err != nil {
+			return nil, err
+		}
+		token.FileSystemID = val
+		bval, err := bytesToUint64(tokenBuffer[14:22])
+		if err != nil {
+			return nil, err
+		}
+		token.FileSystemNodeID = bval
+		bval, err = bytesToUint64(tokenBuffer[22:30])
+		if err != nil {
+			return nil, err
+		}
+		token.Device = bval
 		return token, nil
 
 	case 0x7a: // expanded 32bit subject token
