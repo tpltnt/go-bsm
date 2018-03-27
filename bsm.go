@@ -840,6 +840,8 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in expanded socket token", addrlen)
 		}
+	case 0x82: // FreeBSD socket token
+		size = 1 + 2 + 2 + 4
 	default:
 		err = fmt.Errorf("can't determine the size of the given token (type): 0x%x", input[0])
 	}
@@ -1167,6 +1169,29 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		default:
 			return nil, errors.New("can't process length of terminal machine address")
 		}
+		return token, nil
+
+	case 0x82: // FreeBSD socket tocken
+		token := SocketToken{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.SocketFamily = val
+		val, err = bytesToUint16(tokenBuffer[3:5])
+		if err != nil {
+			return nil, err
+		}
+		token.LocalPort = val
+
+		token.SocketAddress = net.IPv4(
+			tokenBuffer[5],
+			tokenBuffer[6],
+			tokenBuffer[7],
+			tokenBuffer[8],
+		)
 		return token, nil
 
 	default:
