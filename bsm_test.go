@@ -767,7 +767,7 @@ func Test_determineTokenSize_zonename_token(t *testing.T) {
 	if more != 0 {
 		t.Error("expected 0 bytes more to read, but only " + strconv.Itoa(more) + " were requested")
 	}
-	expSize := 6
+	expSize := 5
 	if size != expSize {
 		t.Error("wrong size: expected " + strconv.Itoa(expSize) + ", got " + strconv.Itoa(size))
 	}

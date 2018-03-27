@@ -743,7 +743,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = cerr
 			return
 		}
-		size = 1 + 2 + int(strlen) + 1
+		size = 1 + 2 + int(strlen)
 	case 0x71: // 64 bit arg token
 		if len(input) < 12 {
 			// need more bytes to read Length field
@@ -1097,6 +1097,18 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		}
 		token.Length = length
 		token.Text = string(tokenBuffer[8 : length+7])
+		return token, nil
+
+	case 0x60: // zonename token
+		token := ZonenameToken{
+			TokenID: tokenBuffer[0],
+		}
+		length, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.ZonenameLength = length
+		token.Zonename = string(tokenBuffer[3 : length+2])
 		return token, nil
 
 	case 0x7a: // expanded 32bit subject token
