@@ -616,7 +616,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = cerr
 			return
 		}
-		size = 1 + 2 + int(count) + 1
+		size = 1 + 2 + int(count)
 	case 0x24: // 32 bit Subject Token
 		size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 	case 0x25: // path attr token
@@ -989,6 +989,17 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		if err != nil {
 			return nil, err
 		}
+		return token, nil
+	case 0x23: // path token
+		token := PathToken{
+			TokenID: tokenBuffer[0],
+		}
+		length, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.PathLength = length
+		token.Path = string(tokenBuffer[3 : length+2])
 		return token, nil
 
 	case 0x24: // 32 bit subject token
