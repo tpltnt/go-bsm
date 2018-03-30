@@ -76,10 +76,10 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 		0x2e: 9,  // socket token
 		0x2f: 5,  // seq token
 		0x32: 29, // System V IPV permission token
-		0x3e: 26, // 32 bit attribute token
+		0x3e: 29, // 32 bit attribute token
 		0x52: 9,  // exit token
 		0x72: 10, // 64 bit return token
-		0x73: 30, // 64 bit attribute token
+		0x73: 33, // 64 bit attribute token
 		0x74: 26, // 64 bit header token
 		0x75: 41, // 64 bit subject token
 		0x77: 45, // 64 bit process token

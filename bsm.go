@@ -63,7 +63,7 @@ type ArbitraryDataToken struct {
 // TODO: check if token ID may be 0x31
 type AttributeToken32bit struct {
 	TokenID          byte   // Token ID (1 byte): 0x3e
-	FileAccessMode   byte   // mode_t associated with file (1 byte)
+	FileAccessMode   uint32 // mode_t associated with file (4 bytes)
 	OwnerUserID      uint32 // uid_t associated with file (4 bytes)
 	OwnerGroupID     uint32 // gid_t associated with file (4 bytes)
 	FileSystemID     uint32 // fsid_t associated with file (4 bytes)
@@ -78,7 +78,7 @@ type AttributeToken32bit struct {
 // any, was used to reach the object. The device number is stored using 64 bit.
 type AttributeToken64bit struct {
 	TokenID          byte   // Token ID (1 byte): 0x73
-	FileAccessMode   byte   // mode_t associated with file (1 byte)
+	FileAccessMode   uint32 // mode_t associated with file (4 bytes)
 	OwnerUserID      uint32 // uid_t associated with file (4 bytes)
 	OwnerGroupID     uint32 // gid_t associated with file (4 bytes)
 	FileSystemID     uint32 // fsid_t associated with file (4 bytes)
@@ -744,7 +744,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		}
 		size = len(input)
 	case 0x3e: // 32bit attribute token
-		size = 1 + 1 + 4 + 4 + 4 + 8 + 4
+		size = 1 + 4 + 4 + 4 + 4 + 8 + 4
 	case 0x52: // exit token
 		size = 1 + 4 + 4
 	case 0x60: // zone name token
@@ -774,7 +774,7 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 	case 0x72: // 64 bit Return Token
 		size = 1 + 1 + 8
 	case 0x73: // 64 bit attribute token
-		size = 1 + 1 + 4 + 4 + 4 + 8 + 8
+		size = 1 + 4 + 4 + 4 + 4 + 8 + 8
 	case 0x74: // 64 bit Header Token
 		size = 1 + 4 + 1 + 2 + 2 + 8 + 8
 	case 0x75: // 64 bit Subject Token
@@ -1128,29 +1128,33 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 	case 0x3e: // 32bit attribute token
 		token := AttributeToken32bit{
 			TokenID:        tokenBuffer[0],
-			FileAccessMode: tokenBuffer[1],
 		}
-		val, err := bytesToUint32(tokenBuffer[2:6])
+		val, err := bytesToUint32(tokenBuffer[1:5])
+		if err != nil {
+			return nil, err
+		}
+		token.FileAccessMode = val
+		val, err = bytesToUint32(tokenBuffer[5:9])
 		if err != nil {
 			return nil, err
 		}
 		token.OwnerUserID = val
-		val, err = bytesToUint32(tokenBuffer[6:10])
+		val, err = bytesToUint32(tokenBuffer[9:13])
 		if err != nil {
 			return nil, err
 		}
 		token.OwnerGroupID = val
-		val, err = bytesToUint32(tokenBuffer[10:14])
+		val, err = bytesToUint32(tokenBuffer[13:17])
 		if err != nil {
 			return nil, err
 		}
 		token.FileSystemID = val
-		fsval, err := bytesToUint64(tokenBuffer[14:22])
+		fsval, err := bytesToUint64(tokenBuffer[17:25])
 		if err != nil {
 			return nil, err
 		}
 		token.FileSystemNodeID = fsval
-		val, err = bytesToUint32(tokenBuffer[22:26])
+		val, err = bytesToUint32(tokenBuffer[25:29])
 		if err != nil {
 			return nil, err
 		}
@@ -1172,29 +1176,33 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 	case 0x73: // 64 bit attribute token
 		token := AttributeToken64bit{
 			TokenID:        tokenBuffer[0],
-			FileAccessMode: tokenBuffer[1],
 		}
-		val, err := bytesToUint32(tokenBuffer[2:6])
+		val, err := bytesToUint32(tokenBuffer[1:5])
+		if err != nil {
+			return nil, err
+		}
+		token.FileAccessMode = val
+		val, err = bytesToUint32(tokenBuffer[5:9])
 		if err != nil {
 			return nil, err
 		}
 		token.OwnerUserID = val
-		val, err = bytesToUint32(tokenBuffer[6:10])
+		val, err = bytesToUint32(tokenBuffer[9:13])
 		if err != nil {
 			return nil, err
 		}
 		token.OwnerGroupID = val
-		val, err = bytesToUint32(tokenBuffer[10:14])
+		val, err = bytesToUint32(tokenBuffer[13:17])
 		if err != nil {
 			return nil, err
 		}
 		token.FileSystemID = val
-		bval, err := bytesToUint64(tokenBuffer[14:22])
+		bval, err := bytesToUint64(tokenBuffer[17:25])
 		if err != nil {
 			return nil, err
 		}
 		token.FileSystemNodeID = bval
-		bval, err = bytesToUint64(tokenBuffer[22:30])
+		bval, err = bytesToUint64(tokenBuffer[25:33])
 		if err != nil {
 			return nil, err
 		}
