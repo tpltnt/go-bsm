@@ -988,6 +988,9 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			}
 		}
 		buflen, increase, err = determineTokenSize(tokenBuffer)
+		if nil != err {
+			return nil, err
+		}
 	}
 	// read all the (remaining) bytes we need
 	tmp := make([]byte, buflen) // increase token buffer to hold new bytes
