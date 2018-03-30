@@ -354,16 +354,17 @@ type SeqToken struct {
 
 // SocketToken (or 'socket' token) contains information about UNIX
 // domain and Internet sockets. Each token has four or eight fields.
+// Possible values for token IDs:
+// * BSM specification: 0x2e
+// * inet32 (IPv4) socket: 0x80
+// * inet128 (IPv6) socket: 0x81
+// * Unix socket: 0x82
 // BUG: last sentence is confusing
-// TODO: take care of FreeBSD specifics
-// #define    AUT_SOCKINET32	0x80	/* XXX Darwin/FreeBSD */
-// #define    AUT_SOCKINET128   0x81    /* XXX Darwin/FreeBSD */
-// #define    AUT_SOCKUNIX	0x82    /* XXX Darwin/FreeBSD */
 type SocketToken struct {
-	TokenID       byte   // Token ID (1 byte): 0x2e
+	TokenID       byte   // Token ID (1 byte): 0x2e (BSM spec), 0x80 (inet32 socket), 0x81 (inet128 token), 0x82 (Unix token)
 	SocketFamily  uint16 // socket family (2 bytes)
 	LocalPort     uint16 // local port (2 bytes)
-	SocketAddress net.IP // socket address (4 bytes)
+	SocketAddress net.IP // socket address (4 bytes or 8 bytes for inet128 socket)
 }
 
 // ExpandedSocketToken (or 'expanded socket' token) contains
@@ -855,6 +856,10 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'address type' field in expanded socket token", addrlen)
 		}
+	case 0x80: // socket token (inet32)
+		size = 1 + 2 + 2 + 4
+	case 0x81: // socket token (inet128)
+		size = 1 + 2 + 2 + 16
 	case 0x82: // FreeBSD socket token
 		size = 1 + 2 + 2 + 4
 	default:
@@ -1125,9 +1130,30 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		token.Text = string(tokenBuffer[8 : length+7])
 		return token, nil
 
+	case 0x2e: // socket soken
+		token := SocketToken{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.SocketFamily = val
+		val, err = bytesToUint16(tokenBuffer[3:5])
+		if err != nil {
+			return nil, err
+		}
+		token.LocalPort = val
+		token.SocketAddress = net.IPv4(
+			tokenBuffer[5],
+			tokenBuffer[6],
+			tokenBuffer[7],
+			tokenBuffer[8])
+		return token, nil
+
 	case 0x3e: // 32bit attribute token
 		token := AttributeToken32bit{
-			TokenID:        tokenBuffer[0],
+			TokenID: tokenBuffer[0],
 		}
 		val, err := bytesToUint32(tokenBuffer[1:5])
 		if err != nil {
@@ -1175,7 +1201,7 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 
 	case 0x73: // 64 bit attribute token
 		token := AttributeToken64bit{
-			TokenID:        tokenBuffer[0],
+			TokenID: tokenBuffer[0],
 		}
 		val, err := bytesToUint32(tokenBuffer[1:5])
 		if err != nil {
@@ -1281,7 +1307,45 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		}
 		return token, nil
 
-	case 0x82: // FreeBSD socket tocken
+	case 0x80: // inet32 socket soken
+		token := SocketToken{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.SocketFamily = val
+		val, err = bytesToUint16(tokenBuffer[3:5])
+		if err != nil {
+			return nil, err
+		}
+		token.LocalPort = val
+		token.SocketAddress = net.IPv4(
+			tokenBuffer[5],
+			tokenBuffer[6],
+			tokenBuffer[7],
+			tokenBuffer[8])
+		return token, nil
+
+	case 0x81: // inet128 socket soken
+		token := SocketToken{
+			TokenID: tokenBuffer[0],
+		}
+		val, err := bytesToUint16(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.SocketFamily = val
+		val, err = bytesToUint16(tokenBuffer[3:5])
+		if err != nil {
+			return nil, err
+		}
+		token.LocalPort = val
+		token.SocketAddress = tokenBuffer[5:21]
+		return token, nil
+
+	case 0x82: // FreeBSD socket token
 		token := SocketToken{
 			TokenID: tokenBuffer[0],
 		}

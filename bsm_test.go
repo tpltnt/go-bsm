@@ -84,6 +84,8 @@ func Test_determineTokenSize_fixed(t *testing.T) {
 		0x75: 41, // 64 bit subject token
 		0x77: 45, // 64 bit process token
 		0x7e: 18, // expanded in_addr token
+		0x80: 9,  // inet32 socket token
+		0x81: 21, // inet128 socket token
 		0x82: 9,  // FreeBSD socket token
 	}
 	for tokenID, count := range testData {
