@@ -3,7 +3,7 @@ package main
 
 import (
 	"bytes"
-	//"encoding/binary"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -1206,6 +1206,19 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 			return nil, err
 		}
 		token.Device = val
+		return token, nil
+
+	case 0x52: // exit token
+		token := ExitToken{
+			TokenID: tokenBuffer[0],
+		}
+		stat, err := bytesToUint32(tokenBuffer[1:3])
+		if err != nil {
+			return nil, err
+		}
+		token.Status = stat
+		rval, _ := binary.Varint(tokenBuffer[3:7])
+		token.ReturnValue = int32(rval)
 		return token, nil
 
 	case 0x60: // zonename token
