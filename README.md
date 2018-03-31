@@ -3,6 +3,7 @@
 # go-bsm
 
 This is a parser for the FreeBSD audit file format (based on Sun's Basic Security Module (BSM) file format).
+It can be installed by running `go install github.com/tpltnt/go-bsm`.
 
 # caveat
 This tool uses a handwritten parser for binary files. This was done because yacc wasn't available as a tool
