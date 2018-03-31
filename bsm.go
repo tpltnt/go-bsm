@@ -300,8 +300,8 @@ type ExpandedProcessToken32bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // session ID (4 bytes)
 	TerminalPortID         uint32 // terminal port ID (4 byte)
-	TerminalAddressLength  uint8  // length of machine address (1 byte)
-	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+	TerminalAddressLength  uint32 // length of machine address (4 bytes)
+	TerminalMachineAddress net.IP // IP address of machine (4 or 16 bytes)
 }
 
 // ExpandedProcessToken64bit (or 'expanded process' token contains the contents
@@ -319,8 +319,8 @@ type ExpandedProcessToken64bit struct {
 	ProcessID              uint32 // process ID (4 bytes)
 	SessionID              uint32 // session ID (4 bytes)
 	TerminalPortID         uint64 // terminal port ID (8 byte)
-	TerminalAddressLength  uint8  // length of machine address (1 byte)
-	TerminalMachineAddress net.IP // IP address of machine (4 bytes)
+	TerminalAddressLength  uint32 // length of machine address (4 bytes)
+	TerminalMachineAddress net.IP // IP address of machine (4 or 16 bytes)
 }
 
 // ReturnToken32bit (or 'return' token) contains a system call or library
@@ -821,16 +821,20 @@ func determineTokenSize(input []byte) (size, moreBytes int, err error) {
 			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 32bit expanded subject token", addrlen)
 		}
 	case 0x7b: // 32bit expanded process token
-		if len(input) < 34 {
-			moreBytes = 34 - len(input)
+		if len(input) < 37 {
+			moreBytes = 37 - len(input)
 			return
 		}
-		addrlen := input[33]
+		addrlen, cerr := bytesToUint32(input[33:37])
+		if cerr != nil {
+			err = cerr
+			return
+		}
 		switch addrlen {
 		case 4: // IPv4
-			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 4
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 		case 16: // IPv6
-			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 16
+			size = 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 16
 		default:
 			err = fmt.Errorf("invalid value (%d) for 'terminal address length' field in 32bit expanded process token", addrlen)
 		}
@@ -1376,18 +1380,22 @@ func TokenFromByteInput(input io.Reader) (empty, error) {
 		}
 		token.TerminalPortID = val
 
-		token.TerminalAddressLength = tokenBuffer[33]
+		val, err = bytesToUint32(tokenBuffer[33:37])
+		if err != nil {
+			return nil, err
+		}
+		token.TerminalAddressLength = val
 
 		switch token.TerminalAddressLength {
 		case 4:
 			token.TerminalMachineAddress = net.IPv4(
-				tokenBuffer[34],
-				tokenBuffer[35],
-				tokenBuffer[36],
 				tokenBuffer[37],
+				tokenBuffer[38],
+				tokenBuffer[39],
+				tokenBuffer[40],
 			)
 		case 16:
-			token.TerminalMachineAddress = tokenBuffer[34:50]
+			token.TerminalMachineAddress = tokenBuffer[37:53]
 		default:
 			return nil, errors.New("invalid value for address length in 32bit expanded process token")
 		}
