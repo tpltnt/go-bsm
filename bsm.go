@@ -1,5 +1,5 @@
 // Parse BSM files
-package main
+package bsm
 
 import (
 	"bytes"

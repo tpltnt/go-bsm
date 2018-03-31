@@ -1,5 +1,5 @@
 // A simple tool to print BSM audit records
-package main
+package bsm
 
 import (
 	"flag"

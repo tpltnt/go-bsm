@@ -1,5 +1,5 @@
 // test parsing of BSM files
-package main
+package bsm
 
 import (
 	"bytes"
