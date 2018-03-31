@@ -6,8 +6,12 @@ This is a parser for the FreeBSD audit file format (based on Sun's Basic Securit
 It can be installed by running `go install github.com/tpltnt/go-bsm`.
 
 # caveat
-This tool uses a handwritten parser for binary files. This was done because yacc wasn't available as a tool
-for Go (as of beginning of 2018) and ANTLv4 requires Java.
+This tool uses a dirty handwritten parser for binary files. This was done because yacc wasn't available as
+a tool for Go (as of beginning of 2018) and ANTLv4 requires Java.
+
+# TODO
+* parse all tokens
+* rewrite using parser combinators
 
 # references
 * [audit.log(5)](https://www.freebsd.org/cgi/man.cgi?query=audit.log&apropos=0&sektion=0&arch=default&format=html)
